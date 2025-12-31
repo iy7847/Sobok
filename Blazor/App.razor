@@ -1,0 +1,20 @@
+﻿<Router AppAssembly="@typeof(App).Assembly">
+
+    <!-- 경로가 발견된 경우 -->
+    <Found Context="routeData">
+        <!-- [수정] Shared -> Layout 으로 변경 -->
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(ProfitMate_V2.Layout.AppLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+
+    <!-- 경로를 찾지 못한 경우 -->
+    <NotFound>
+        <PageTitle>페이지를 찾을 수 없습니다.</PageTitle>
+        <!-- [수정] Shared -> Layout 으로 변경 -->
+        <LayoutView Layout="@typeof(ProfitMate_V2.Layout.AppLayout)">
+            <p role="alert">죄송합니다. 이 주소에는 해당되는 내용이 없습니다.</p>
+        </LayoutView>
+    </NotFound>
+
+
+</Router>

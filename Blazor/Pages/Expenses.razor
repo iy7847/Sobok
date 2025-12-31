@@ -1,0 +1,259 @@
+﻿@page "/expenses"
+@using Supabase.Interfaces
+@using Supabase.Postgrest
+@using ProfitMate_V2.Models
+@using ProfitMate_V2.Shared
+@inject Supabase.Client Supabase
+@inject IJSRuntime JS
+
+<PageTitle>지출 관리 - 소복</PageTitle>
+
+<div class="container mt-4 pb-5">
+
+    <!-- 1. 헤더 & 날짜 필터 -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h3 class="fw-bold text-dark m-0">💸 지출 내역 관리</h3>
+            <p class="text-muted small m-0">실제 발생한 지출을 기록하고 관리합니다.</p>
+        </div>
+
+        <!-- 날짜 필터 -->
+        <div class="d-flex gap-2 align-items-center bg-white p-2 rounded shadow-sm border">
+            <span class="small fw-bold text-secondary text-nowrap ms-2">조회 월</span>
+            <input type="month" class="form-control form-control-sm border-0" style="width: 140px;"
+                   @bind="selectedMonth" @bind:after="LoadData" />
+
+            <div class="vr"></div>
+
+            <button class="btn btn-sm btn-light text-primary" @onclick="LoadData" title="새로고침">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. 요약 카드 -->
+    <div class="card border-0 shadow-sm mb-4 bg-primary bg-opacity-10">
+        <div class="card-body d-flex align-items-center justify-content-between p-4">
+            <div>
+                <h6 class="text-primary fw-bold text-uppercase mb-1">@selectedMonth.ToString("yyyy년 MM월") 총 지출</h6>
+                <small class="text-muted">이 금액이 마진 분석 시 '총 운영비'로 집계됩니다.</small>
+            </div>
+            <div class="text-end">
+                <h2 class="fw-bold text-dark m-0">@totalAmount.ToString("N0")원</h2>
+                <small class="text-muted">총 @expenses.Count 건</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 도구 모음 -->
+    <div class="d-flex justify-content-end gap-2 mb-3">
+        <button class="btn btn-outline-secondary btn-sm shadow-sm" @onclick="ImportFixedCosts">
+            <i class="bi bi-box-arrow-in-down me-1"></i> 고정비 불러오기
+        </button>
+        <button class="btn btn-primary btn-sm shadow-sm" @onclick="ShowAddForm">
+            <i class="bi bi-plus-lg me-1"></i> 지출 추가
+        </button>
+    </div>
+
+    <!-- 4. 입력 폼 -->
+    @if (isFormVisible)
+    {
+        <div class="card shadow mb-4 border-0">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 fw-bold text-primary">
+                    @(newItem.Id == 0 ? "✨ 새 지출 입력" : "✏️ 지출 내역 수정")
+                </h6>
+                <button class="btn btn-close" @onclick="HideAddForm"></button>
+            </div>
+            <div class="card-body bg-light">
+                <EditForm Model="newItem" OnValidSubmit="SaveItem">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">날짜</label>
+                            <input type="date" class="form-control" @bind="newItem.ExpenseDate" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">항목명</label>
+                            <InputText class="form-control" @bind-Value="newItem.Name" placeholder="예: 알바비, 식자재" />
+                        </div>
+                        <div class="col-md-3">
+                            <!-- [수정] 천 단위 콤마 입력 컴포넌트 적용 -->
+                            <CurrencyInput Label="금액" @bind-Value="newItem.Amount" Unit="원" Placeholder="0" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold">분류</label>
+                            <InputSelect class="form-select" @bind-Value="newItem.Category">
+                                <option value="일반">일반</option>
+                                <option value="고정비">고정비</option>
+                                <option value="인건비">인건비</option>
+                                <option value="재료비">재료비</option>
+                                <!-- [요청 반영] 기타 분류 추가 -->
+                                <option value="기타">기타</option>
+                            </InputSelect>
+                        </div>
+                        <!-- [요청 반영] 메모 입력란 추가 (DB 저장됨) -->
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">메모</label>
+                            <InputText class="form-control" @bind-Value="newItem.Description" placeholder="상세 내용을 입력하세요 (선택)" />
+                        </div>
+
+                        <div class="col-12 text-end pt-3 border-top mt-2">
+                            <button type="button" class="btn btn-outline-secondary me-2" @onclick="HideAddForm">취소</button>
+                            <button type="submit" class="btn btn-primary px-4">저장</button>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    <!-- 5. 리스트 -->
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-nowrap">
+                <thead class="bg-light text-muted x-small text-uppercase">
+                    <tr>
+                        <th class="ps-4">날짜</th>
+                        <th>분류</th>
+                        <th>항목명</th>
+                        <th>메모</th>
+                        <th class="text-end">금액</th>
+                        <th class="text-end pe-4" style="width: 100px;">관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (expenses == null)
+                    {
+                        <tr><td colspan="6" class="text-center py-5"><span class="spinner-border text-primary"></span></td></tr>
+                    }
+                    else if (expenses.Count == 0)
+                    {
+                        <tr><td colspan="6" class="text-center py-5 text-muted">선택한 달의 지출 내역이 없습니다.</td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in expenses)
+                        {
+                            <tr>
+                                <td class="ps-4 text-muted small">@item.ExpenseDate.ToString("MM.dd (ddd)")</td>
+                                <td><span class="badge bg-light text-dark border">@item.Category</span></td>
+                                <td class="fw-bold">@item.Name</td>
+                                <!-- [요청 반영] 메모 표시 -->
+                                <td class="small text-muted text-truncate" style="max-width: 150px;">@item.Description</td>
+                                <td class="text-end fw-bold text-danger">@item.Amount.ToString("N0")원</td>
+                                <td class="text-end pe-4">
+                                    <button class="btn btn-sm btn-outline-danger border-0" @onclick="() => DeleteItem(item)" title="삭제">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private DateTime selectedMonth = DateTime.Now;
+    private List<Expense> expenses = new();
+    private Expense newItem = new Expense();
+    private bool isFormVisible = false;
+    private double totalAmount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        selectedMonth = DateTime.Now;
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            var start = new DateTime(selectedMonth.Year, selectedMonth.Month, 1);
+            var end = start.AddMonths(1).AddSeconds(-1);
+
+            var result = await Supabase.From<Expense>()
+                .Where(x => x.ExpenseDate >= start && x.ExpenseDate <= end)
+                .Order("expense_date", Constants.Ordering.Descending)
+                .Get();
+
+            expenses = result.Models;
+            totalAmount = expenses.Sum(x => x.Amount);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+    }
+
+    private void ShowAddForm()
+    {
+        var today = DateTime.Now;
+        var defaultDate = (today.Year == selectedMonth.Year && today.Month == selectedMonth.Month)
+                          ? today
+                          : new DateTime(selectedMonth.Year, selectedMonth.Month, 1);
+
+        newItem = new Expense
+        {
+            ExpenseDate = defaultDate,
+            Category = "일반"
+        };
+        isFormVisible = true;
+    }
+
+    private void HideAddForm() { isFormVisible = false; }
+
+    private async Task SaveItem()
+    {
+        await Supabase.From<Expense>().Insert(newItem);
+        await LoadData();
+        isFormVisible = false;
+    }
+
+    private async Task DeleteItem(Expense item)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "정말 삭제하시겠습니까?"))
+        {
+            await Supabase.From<Expense>().Delete(item);
+            await LoadData();
+        }
+    }
+
+    private async Task ImportFixedCosts()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", $"{selectedMonth.Month}월 지출 내역에 '고정비 설정' 항목들을 일괄 추가하시겠습니까?")) return;
+
+        try
+        {
+            var templates = await Supabase.From<FixedCost>().Get();
+            var list = templates.Models;
+
+            if (list.Count == 0)
+            {
+                await JS.InvokeVoidAsync("alert", "등록된 고정비 설정이 없습니다.");
+                return;
+            }
+
+            var newExpenses = list.Select(fc => new Expense
+            {
+                Name = fc.Name,
+                Amount = fc.Amount,
+                Category = "고정비",
+                ExpenseDate = new DateTime(selectedMonth.Year, selectedMonth.Month, Math.Min(fc.PaymentDay, DateTime.DaysInMonth(selectedMonth.Year, selectedMonth.Month))),
+                Description = fc.Description
+            }).ToList();
+
+            await Supabase.From<Expense>().Insert(newExpenses);
+
+            await JS.InvokeVoidAsync("alert", $"{newExpenses.Count}건이 추가되었습니다.");
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"오류 발생: {ex.Message}");
+        }
+    }
+}

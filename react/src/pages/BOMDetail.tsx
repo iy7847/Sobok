@@ -1,0 +1,374 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { supabase } from '../services/supabase';
+import type { Item, BOM, ItemType } from '../types';
+import {
+    ArrowLeft,
+    Save,
+    Plus,
+    Trash2,
+    Search,
+    Loader2,
+    CheckCircle2,
+    AlertCircle
+} from 'lucide-react';
+import { motion } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
+
+interface BomItemView extends Partial<BOM> {
+    child_item?: Item;
+    isNew?: boolean;
+    isDeleted?: boolean;
+}
+
+const BOMDetailPage: React.FC = () => {
+    const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+    const { user } = useAuth();
+
+    const [currentItem, setCurrentItem] = useState<Item | null>(null);
+    const [bomList, setBomList] = useState<BomItemView[]>([]);
+    const [allUserItems, setAllUserItems] = useState<Item[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isCommitting, setIsCommitting] = useState(false);
+
+    const [filterType, setFilterType] = useState<ItemType>('Material');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [inputQty, setInputQty] = useState(1);
+    const [selectedItemToAdd, setSelectedItemToAdd] = useState<Item | null>(null);
+
+    const loadData = useCallback(async () => {
+        if (!id || !user) return;
+        setLoading(true);
+        try {
+            // Load current item
+            const { data: itemData, error: itemError } = await supabase
+                .from('Items')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (itemError) throw itemError;
+            setCurrentItem(itemData);
+
+            // Load all items for selection
+            const { data: allItems, error: allItemsError } = await supabase
+                .from('Items')
+                .select('*')
+                .eq('user_id', user.id);
+
+            if (allItemsError) throw allItemsError;
+            setAllUserItems(allItems || []);
+            const itemMap = new Map(allItems?.map(i => [i.id, i]));
+
+            // Load BOMs
+            const { data: bomData, error: bomError } = await supabase
+                .from('BOMs')
+                .select('*')
+                .eq('parent_item_id', id);
+
+            if (bomError) throw bomError;
+
+            const views: BomItemView[] = (bomData || []).map(b => ({
+                ...b,
+                child_item: itemMap.get(b.child_item_id)
+            }));
+            setBomList(views);
+        } catch (err: any) {
+            console.error(err);
+            alert('데이터 로드 실패: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
+    }, [id, user]);
+
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
+
+    const filteredSearchResults = allUserItems.filter(item =>
+        (item.type === filterType) &&
+        (item.id !== Number(id)) && // Can't add itself
+        (item.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
+    const handleAddIngredient = () => {
+        if (!selectedItemToAdd || !id) return;
+
+        if (bomList.some(b => !b.isDeleted && b.child_item_id === selectedItemToAdd.id)) {
+            alert('이미 목록에 있는 재료입니다.');
+            return;
+        }
+
+        setBomList([...bomList, {
+            parent_item_id: Number(id),
+            child_item_id: selectedItemToAdd.id,
+            quantity: inputQty,
+            child_item: selectedItemToAdd,
+            isNew: true
+        }]);
+
+        setSelectedItemToAdd(null);
+        setInputQty(1);
+        setSearchQuery('');
+    };
+
+    const handleRemoveIngredient = (index: number) => {
+        const newList = [...bomList];
+        if (newList[index].isNew) {
+            newList.splice(index, 1);
+        } else {
+            newList[index].isDeleted = true;
+        }
+        setBomList(newList);
+    };
+
+    const calculateTotalCost = () => {
+        return bomList
+            .filter(b => !b.isDeleted)
+            .reduce((sum, b) => sum + (b.child_item?.cost_price || 0) * (b.quantity || 0), 0);
+    };
+
+    const handleCommit = async () => {
+        if (!id || isCommitting) return;
+        setIsCommitting(true);
+        try {
+            for (const bom of bomList) {
+                if (bom.isNew) {
+                    const { error } = await supabase.from('BOMs').insert({
+                        parent_item_id: bom.parent_item_id,
+                        child_item_id: bom.child_item_id,
+                        quantity: bom.quantity
+                    });
+                    if (error) throw error;
+                } else if (bom.isDeleted) {
+                    const { error } = await supabase.from('BOMs').delete().eq('id', bom.id);
+                    if (error) throw error;
+                } else {
+                    const { error } = await supabase.from('BOMs').update({
+                        quantity: bom.quantity
+                    }).eq('id', bom.id);
+                    if (error) throw error;
+                }
+            }
+
+            // Update parent item cost
+            const totalCost = calculateTotalCost();
+            const { error: updateError } = await supabase
+                .from('Items')
+                .update({ cost_price: totalCost })
+                .eq('id', id);
+
+            if (updateError) throw updateError;
+
+            alert('저장되었습니다.');
+            await loadData();
+        } catch (err: any) {
+            alert('저장 실패: ' + err.message);
+        } finally {
+            setIsCommitting(false);
+        }
+    };
+
+    if (loading) return (
+        <div className="h-[60vh] flex flex-col items-center justify-center">
+            <Loader2 className="animate-spin text-primary mb-4" size={48} />
+            <p className="text-text-muted">레시피를 불러오는 중...</p>
+        </div>
+    );
+
+    return (
+        <div className="max-w-5xl mx-auto space-y-8 pb-20">
+            <div className="flex items-center gap-4">
+                <button onClick={() => navigate('/items')} className="p-3 glass hover:bg-white/10 text-white rounded-2xl transition-all">
+                    <ArrowLeft size={24} />
+                </button>
+                <div>
+                    <div className="flex items-center gap-3 mb-1">
+                        <span className="px-2 py-0.5 rounded-md bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider">BOM Recipe</span>
+                        <h1 className="text-3xl font-black">{currentItem?.name}</h1>
+                    </div>
+                    <p className="text-text-muted text-sm house-description">구성 재료와 소요량을 관리하여 정확한 제조 원가를 산출합니다.</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left: Ingredient Selector */}
+                <div className="lg:col-span-1 space-y-6">
+                    <div className="glass p-6 space-y-6">
+                        <h3 className="font-bold flex items-center gap-2">
+                            <Plus size={18} className="text-primary" />
+                            재료 추가
+                        </h3>
+
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-2 p-1 bg-white/5 rounded-xl text-xs font-bold">
+                                <button
+                                    onClick={() => setFilterType('Material')}
+                                    className={`py-2 rounded-lg transition-all ${filterType === 'Material' ? 'bg-white/10 text-white shadow-sm' : 'text-text-muted hover:text-white'}`}
+                                >
+                                    원자재
+                                </button>
+                                <button
+                                    onClick={() => setFilterType('Component')}
+                                    className={`py-2 rounded-lg transition-all ${filterType === 'Component' ? 'bg-white/10 text-white shadow-sm' : 'text-text-muted hover:text-white'}`}
+                                >
+                                    반제품
+                                </button>
+                            </div>
+
+                            <div className="relative">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
+                                <input
+                                    type="text"
+                                    className="input-field pl-10 text-sm"
+                                    placeholder="재료 이름 검색..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="max-h-[300px] overflow-y-auto space-y-1 pr-2 scrollbar-thin">
+                                {filteredSearchResults.map((item) => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => setSelectedItemToAdd(item)}
+                                        className={`w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group ${selectedItemToAdd?.id === item.id ? 'bg-primary text-white' : 'bg-white/5 hover:bg-white/10 text-text-muted hover:text-white'}`}
+                                    >
+                                        <span className="font-bold text-sm">{item.name}</span>
+                                        <span className={`text-[10px] font-mono ${selectedItemToAdd?.id === item.id ? 'text-white/70' : 'text-text-muted'}`}>
+                                            {item.cost_price.toLocaleString()}원
+                                        </span>
+                                    </button>
+                                ))}
+                                {filteredSearchResults.length === 0 && (
+                                    <div className="py-10 text-center text-xs text-text-muted">검색 결과가 없습니다.</div>
+                                )}
+                            </div>
+
+                            {selectedItemToAdd && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="p-4 bg-primary/10 border border-primary/20 rounded-2xl space-y-4"
+                                >
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-xs font-bold text-primary">선택됨: {selectedItemToAdd.name}</span>
+                                        <button onClick={() => setSelectedItemToAdd(null)} className="text-primary/50 hover:text-primary"><Trash2 size={14} /></button>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="number"
+                                            className="input-field flex-1 h-10 text-sm"
+                                            placeholder="소요량"
+                                            value={inputQty}
+                                            onChange={(e) => setInputQty(Number(e.target.value))}
+                                        />
+                                        <button onClick={handleAddIngredient} className="btn btn-primary h-10 px-4 text-sm font-bold">추가</button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="glass p-6 border-l-4 border-l-amber-400">
+                        <h4 className="text-sm font-bold mb-2 flex items-center gap-2">
+                            <AlertCircle size={16} className="text-amber-400" />
+                            데이터 변경 안내
+                        </h4>
+                        <p className="text-xs text-text-muted leading-relaxed">
+                            재료를 추가하거나 소요량을 변경하면 상단 품목의 개당 원가가 즉시 재계산됩니다. 꼭 '변경사항 저장'을 눌러주세요.
+                        </p>
+                    </div>
+                </div>
+
+                {/* Right: BOM List */}
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="glass overflow-hidden">
+                        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+                            <h3 className="font-bold">구성 재료 현황</h3>
+                            <button
+                                onClick={handleCommit}
+                                disabled={isCommitting}
+                                className="btn btn-primary px-6 py-2 rounded-xl text-sm shadow-lg shadow-primary/20"
+                            >
+                                {isCommitting ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                                <span>{isCommitting ? '저장 중...' : '변경사항 저장'}</span>
+                            </button>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="text-[10px] font-black text-text-muted uppercase tracking-widest border-b border-white/5">
+                                        <th className="px-6 py-4">구분</th>
+                                        <th className="px-6 py-4">재료 상세</th>
+                                        <th className="px-6 py-4" style={{ width: '120px' }}>소요량</th>
+                                        <th className="px-6 py-4 text-right">계산 원가</th>
+                                        <th className="px-6 py-4 text-right"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-white/5">
+                                    {bomList.filter(b => !b.isDeleted).map((bom, idx) => (
+                                        <motion.tr layout key={idx} className="group hover:bg-white/[0.01]">
+                                            <td className="px-6 py-4">
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${bom.child_item?.type === 'Component' ? 'text-amber-400 border-amber-400/20 bg-amber-400/5' : 'text-blue-400 border-blue-400/20 bg-blue-400/5'}`}>
+                                                    {bom.child_item?.type === 'Component' ? '반제품' : '원자재'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 font-bold text-sm">
+                                                {bom.child_item?.name}
+                                                <div className="text-[10px] font-normal text-text-muted mt-0.5">단가: {bom.child_item?.cost_price.toLocaleString()}원</div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <input
+                                                    type="number"
+                                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-center font-mono text-sm focus:border-primary outline-none transition-all"
+                                                    value={bom.quantity}
+                                                    onChange={(e) => {
+                                                        const newList = [...bomList];
+                                                        newList[newList.indexOf(bom)].quantity = Number(e.target.value);
+                                                        setBomList(newList);
+                                                    }}
+                                                />
+                                            </td>
+                                            <td className="px-6 py-4 text-right font-mono font-bold text-sm text-primary">
+                                                {((bom.child_item?.cost_price || 0) * (bom.quantity || 0)).toLocaleString()}원
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <button onClick={() => handleRemoveIngredient(idx)} className="p-2 text-text-muted hover:text-red-400 transition-colors">
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </td>
+                                        </motion.tr>
+                                    ))}
+                                    {bomList.filter(b => !b.isDeleted).length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="px-6 py-20 text-center text-text-muted italic">구성된 재료가 없습니다. 왼쪽에서 재료를 추가해 주세요.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                                <tfoot className="bg-primary/5">
+                                    <tr className="font-bold text-white border-t border-white/5">
+                                        <td colSpan={3} className="px-6 py-6 text-right text-sm">총 제조 원가 합계</td>
+                                        <td className="px-6 py-6 text-right text-2xl text-primary font-black">
+                                            {calculateTotalCost().toLocaleString()}원
+                                        </td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 text-[10px] text-text-muted">
+                        <div className="flex items-center gap-1"><CheckCircle2 size={12} className="text-emerald-400" /> 데이터 자동 검증됨</div>
+                        <div className="flex items-center gap-1"><CheckCircle2 size={12} className="text-emerald-400" /> 실시간 원가 동기화</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default BOMDetailPage;

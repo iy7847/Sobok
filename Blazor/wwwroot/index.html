@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>소복 (Sobok)</title>
+    <base href="/" />
+
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <!-- [자동화 준비] 구체적인 숫자 대신 {VERSION} 치환자를 넣습니다 -->
+    <link rel="stylesheet" href="css/app.css?v={VERSION}" />
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <!-- [자동화 준비] 여기도 {VERSION} 치환자 적용 -->
+    <link href="ProfitMate_V2.styles.css?v={VERSION}" rel="stylesheet" />
+
+    <link href="manifest.webmanifest" rel="manifest" />
+    <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+
+    <!-- 카카오톡 SDK -->
+    <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" xintegrity="sha384-TiCUE00h649CAMonG018J2ujOgDKW/kBWIf//29YkGcUqnzzxwklr7BNaiXVcHXz" crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <div id="app">
+        <svg class="loading-progress">
+            <circle r="40%" cx="50%" cy="50%" />
+            <circle r="40%" cx="50%" cy="50%" />
+        </svg>
+        <div class="loading-progress-text"></div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script src="_framework/blazor.webassembly.js"></script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js').catch(error => {
+                console.warn('Service worker registration failed:', error);
+            });
+        }
+
+        window.deferredPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            window.deferredPrompt = e;
+        });
+
+        window.triggerPwaInstall = async () => {
+            if (window.deferredPrompt) {
+                window.deferredPrompt.prompt();
+                const { outcome } = await window.deferredPrompt.userChoice;
+                window.deferredPrompt = null;
+                return outcome;
+            } else {
+                return 'unavailable';
+            }
+        }
+
+        window.initKakao = (key) => {
+            if (!Kakao.isInitialized()) {
+                Kakao.init(key);
+            }
+        };
+
+        window.shareKakaoOrderLink = (shopName, link) => {
+            Kakao.Share.sendDefault({
+                objectType: 'feed',
+                content: {
+                    title: shopName + ' 주문서',
+                    description: '간편하게 주문하고 소복하게 받아가세요!',
+                    imageUrl: 'https://placehold.co/600x400?text=Order',
+                    link: {
+                        mobileWebUrl: link,
+                        webUrl: link,
+                    },
+                },
+                buttons: [
+                    {
+                        title: '주문하러 가기',
+                        link: {
+                            mobileWebUrl: link,
+                            webUrl: link,
+                        },
+                    },
+                ],
+            });
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.12" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.12" PrivateAssets="all" />
+    <PackageReference Include="Supabase" Version="1.1.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ServiceWorker Include="wwwroot\service-worker.js" PublishedContent="wwwroot\service-worker.published.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="wwwroot\images\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="wwwroot\images\logo.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+	<!-- [박일용] 배포 시 index.html의 버전을 현재 시간으로 자동 변경하는 스크립트 -->
+	<Target Name="ReplaceVersionInIndexHtml" AfterTargets="Publish">
+		<ItemGroup>
+			<IndexFile Include="$(PublishDir)wwwroot\index.html" />
+		</ItemGroup>
+		<PropertyGroup>
+			<!-- 현재 시간을 구해서 버전 번호로 사용 (예: 202512191130) -->
+			<CurrentDate>$([System.DateTime]::Now.ToString("yyyyMMddHHmmss"))</CurrentDate>
+		</PropertyGroup>
+		<Message Text="Updating index.html version to $(CurrentDate)..." Importance="high" />
+		<!-- index.html 파일을 읽어서 {VERSION}을 현재 시간으로 바꿔치기 후 저장 -->
+		<WriteLinesToFile
+		  File="@(IndexFile)"
+		  Lines="$([System.IO.File]::ReadAllText('%(Identity)').Replace('{VERSION}', '$(CurrentDate)'))"
+		  Overwrite="true"
+		  Encoding="UTF-8" />
+	</Target>
+
+</Project>

@@ -1,0 +1,340 @@
+﻿@page "/products/{Id:long}"
+@using Supabase.Interfaces
+@using Supabase.Postgrest
+@using ProfitMate_V2.Models
+@using ProfitMate_V2.Shared
+@inject Supabase.Client Supabase
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>BOM 상세 관리 - 소복</PageTitle>
+
+<div class="container mt-4 pb-5">
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger shadow-sm border-0 rounded-4 p-4">
+            <h4 class="fw-bold">❌ 데이터 로드 오류</h4>
+            <p class="mb-3">@errorMessage</p>
+            <button class="btn btn-dark rounded-pill px-4" @onclick="GoBack">품목 목록으로 돌아가기</button>
+        </div>
+    }
+    else if (currentItem == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary mb-3" role="status"></div>
+            <p class="text-muted">품목 정보를 불러오는 중입니다...</p>
+        </div>
+    }
+    else
+    {
+        <!-- 상단 헤더 -->
+        <div class="card shadow-sm border-0 rounded-4 mb-4 overflow-hidden">
+            <div class="card-body p-4 bg-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-primary-subtle text-primary mb-2">BOM 구성 관리</span>
+                        <h3 class="fw-bold text-dark m-0">📜 @currentItem.Name</h3>
+                        <p class="text-muted small m-0 mt-1">이 품목을 구성하는 하위 재료 리스트를 관리합니다.</p>
+                    </div>
+                    <button class="btn btn-outline-secondary rounded-pill px-3" @onclick="GoBack">
+                        <i class="bi bi-arrow-left me-1"></i> 목록으로
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 재료 추가 영역 (전체 목록 필터링 방식 적용) -->
+        <div class="card p-4 mb-4 bg-light shadow-sm border-0 rounded-4">
+            <h5 class="fw-bold mb-3">➕ 재료 추가</h5>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted">분류 선택</label>
+                    <select class="form-select border-0 bg-white shadow-none" @onchange="OnFilterTypeChanged">
+                        <option value="Material">📦 원자재 전체보기</option>
+                        <option value="Component">🍰 반제품 전체보기</option>
+                    </select>
+                </div>
+
+                <div class="col-md-6 position-relative">
+                    <label class="form-label small fw-bold text-muted">재료 이름으로 필터링</label>
+                    <div class="input-group">
+                        <span class="input-group-text border-0 bg-white"><i class="bi bi-funnel text-muted"></i></span>
+                        <input type="text" class="form-control border-0 bg-white shadow-none"
+                               placeholder="재료명을 입력하면 아래 목록이 줄어듭니다..."
+                               value="@searchQuery"
+                               @oninput="OnSearchInput" />
+                    </div>
+
+                    <!-- 검색/필터링된 재료 목록 (상시 노출) -->
+                    <div class="mt-2 list-group shadow-sm border-0 rounded-3"
+                         style="max-height: 200px; overflow-y: auto; background: white;">
+                        @if (searchResults.Any())
+                        {
+                            @foreach (var item in searchResults)
+                            {
+                                <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2 @(tempItemToAdd?.Id == item.Id ? "bg-primary bg-opacity-10" : "")"
+                                        @onclick="() => SelectItemToAdd(item)">
+                                    <span class="@(tempItemToAdd?.Id == item.Id ? "fw-bold text-primary" : "text-dark")">@item.Name</span>
+                                    <small class="text-muted">@item.CostPrice.ToString("N2")원</small>
+                                </button>
+                            }
+                        }
+                        else
+                        {
+                            <div class="p-3 text-center text-muted small">해당하는 재료가 없습니다.</div>
+                        }
+                    </div>
+
+                    @if (tempItemToAdd != null)
+                    {
+                        <div class="mt-2 p-2 bg-primary bg-opacity-10 rounded-3 d-flex align-items-center animate-fade-in">
+                            <i class="bi bi-check-circle-fill text-primary me-2"></i>
+                            <span class="fw-bold text-primary small">선택됨: @tempItemToAdd.Name</span>
+                            <button type="button" class="btn btn-sm ms-auto py-0 text-muted" @onclick="() => tempItemToAdd = null"><i class="bi bi-x-lg"></i></button>
+                        </div>
+                    }
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold text-muted">소요량 입력</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control border-0 bg-white shadow-none" @bind="inputQty" step="0.01" />
+                        <button type="button" class="btn btn-success px-3 fw-bold" @onclick="AddItemToBOMList" disabled="@(tempItemToAdd == null)">
+                            추가
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOM 리스트 -->
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
+                <h6 class="fw-bold m-0 text-dark"><i class="bi bi-list-check me-2"></i>구성 재료 현황</h6>
+                <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" @onclick="CommitChanges" disabled="@isCommitting">
+                    <i class="bi bi-cloud-arrow-up me-1"></i> @(isCommitting ? "저장 중..." : "변경사항 저장")
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr class="text-muted small text-uppercase">
+                            <th class="ps-4">유형</th>
+                            <th>재료명</th>
+                            <th style="width: 150px;">소요량</th>
+                            <th class="text-end">소요 원가</th>
+                            <th class="text-end pe-4" style="width: 80px;">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var bom in bomList.Where(b => !b.IsDeleted))
+                        {
+                            <tr>
+                                <td class="ps-4">
+                                    <span class="badge rounded-pill @GetTypeColor(bom.ChildItem?.Type)">
+                                        @GetTypeName(bom.ChildItem?.Type)
+                                    </span>
+                                </td>
+                                <td class="fw-bold text-dark">@(bom.ChildItem?.Name ?? "정보 로드 중...")</td>
+                                <td>
+                                    <div class="input-group input-group-sm" style="width: 120px;">
+                                        <input type="number" class="form-control border-0 bg-light text-center" @bind="bom.Quantity" @oninput="StateHasChanged" />
+                                    </div>
+                                </td>
+                                <td class="text-end fw-bold">@bom.CalculatedCost.ToString("N0")원</td>
+                                <td class="text-end pe-4">
+                                    <button class="btn btn-link text-danger p-0" @onclick="() => DeleteBOMItem(bom)"><i class="bi bi-trash fs-5"></i></button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="bg-light border-top">
+                        <tr class="fw-bold text-dark">
+                            <td colspan="3" class="text-end py-3">총 제조 원가 합계:</td>
+                            <td class="text-end text-primary fs-5 py-3">@bomList.Where(b => !b.IsDeleted).Sum(b => b.CalculatedCost).ToString("N0")원</td>
+                            <td class="pe-4 py-3"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public long Id { get; set; }
+
+    public class BomItemView
+    {
+        public long Id { get; set; }
+        public long ParentItemId { get; set; }
+        public long ChildItemId { get; set; }
+        public double Quantity { get; set; }
+        public Item? ChildItem { get; set; }
+        public bool IsNew { get; set; } = false;
+        public bool IsDeleted { get; set; } = false;
+        public double CalculatedCost => (ChildItem?.CostPrice ?? 0.0) * Quantity;
+    }
+
+    private Item? currentItem;
+    private List<BomItemView> bomList = new();
+    private List<Item> allUserItems = new();
+    private string filterType = "Material";
+    private double inputQty = 1;
+    private string searchQuery = "";
+    private List<Item> searchResults = new();
+    private Item? tempItemToAdd;
+    private bool isCommitting = false;
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync() { await LoadData(); }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            var session = Supabase.Auth.CurrentSession ?? await Supabase.Auth.RetrieveSessionAsync();
+            if (session?.User == null) return;
+
+            var itemResult = await Supabase.From<Item>().Where(x => x.Id == Id).Get();
+            currentItem = itemResult.Models.FirstOrDefault();
+
+            if (currentItem == null) return;
+
+            // [박일용] 문자열 필터로 사장님의 품목을 모두 가져옵니다.
+            var allItemsResult = await Supabase.From<Item>()
+                .Filter("user_id", global::Supabase.Postgrest.Constants.Operator.Equals, session.User.Id)
+                .Get();
+
+            allUserItems = allItemsResult.Models ?? new List<Item>();
+            var itemMap = allUserItems.ToDictionary(i => i.Id);
+
+            var bomResult = await Supabase.From<BOM>()
+                .Where(x => x.ParentItemId == Id)
+                .Get();
+
+            bomList = bomResult.Models.Select(b => new BomItemView
+            {
+                Id = b.Id,
+                ParentItemId = b.ParentItemId,
+                ChildItemId = b.ChildItemId,
+                Quantity = b.Quantity,
+                ChildItem = itemMap.GetValueOrDefault(b.ChildItemId)
+            }).ToList();
+
+            // 초기 로딩 시 전체 목록을 필터에 적용
+            UpdateFilteredList("");
+        }
+        catch (Exception ex) { errorMessage = ex.Message; }
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        searchQuery = e.Value?.ToString() ?? "";
+        UpdateFilteredList(searchQuery);
+    }
+
+    private void UpdateFilteredList(string query)
+    {
+        // [박일용] 분류에 맞는 전체 목록에서 검색어에 따라 실시간으로 걸러줍니다.
+        searchResults = allUserItems
+            .Where(x => x.Type == filterType && (string.IsNullOrWhiteSpace(query) || x.Name.Contains(query, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(x => x.Name)
+            .ToList();
+
+        StateHasChanged();
+    }
+
+    private void OnFilterTypeChanged(ChangeEventArgs e)
+    {
+        filterType = e.Value?.ToString() ?? "Material";
+        tempItemToAdd = null;
+        UpdateFilteredList(searchQuery);
+    }
+
+    private void SelectItemToAdd(Item item)
+    {
+        tempItemToAdd = item;
+    }
+
+    private void AddItemToBOMList()
+    {
+        if (tempItemToAdd == null) return;
+
+        if (bomList.Any(b => !b.IsDeleted && b.ChildItemId == tempItemToAdd.Id))
+        {
+            JS.InvokeVoidAsync("alert", "이미 목록에 있는 재료입니다.");
+            return;
+        }
+
+        bomList.Add(new BomItemView
+        {
+            ParentItemId = Id,
+            ChildItemId = tempItemToAdd.Id,
+            Quantity = inputQty,
+            ChildItem = tempItemToAdd,
+            IsNew = true
+        });
+
+        tempItemToAdd = null;
+        inputQty = 1;
+        searchQuery = ""; // 검색어 초기화 시 목록도 전체보기로 환원
+        UpdateFilteredList("");
+    }
+
+    private void DeleteBOMItem(BomItemView bom) { if (bom.IsNew) bomList.Remove(bom); else bom.IsDeleted = true; }
+
+    private async Task CommitChanges()
+    {
+        if (isCommitting) return;
+        isCommitting = true;
+        try
+        {
+            foreach (var bom in bomList)
+            {
+                var model = new BOM
+                {
+                    Id = bom.Id,
+                    ParentItemId = Id,
+                    ChildItemId = bom.ChildItemId,
+                    Quantity = bom.Quantity
+                };
+
+                if (bom.IsNew) await Supabase.From<BOM>().Insert(model);
+                else if (bom.IsDeleted) await Supabase.From<BOM>().Delete(model);
+                else await Supabase.From<BOM>().Update(model);
+            }
+
+            if (currentItem != null)
+            {
+                currentItem.CostPrice = bomList.Where(b => !b.IsDeleted).Sum(b => b.CalculatedCost);
+                await Supabase.From<Item>().Update(currentItem);
+            }
+
+            await LoadData();
+            await JS.InvokeVoidAsync("alert", "저장되었습니다.");
+        }
+        catch (Exception ex) { await JS.InvokeVoidAsync("alert", "실패: " + ex.Message); }
+        finally { isCommitting = false; }
+    }
+
+    private void GoBack() => Nav.NavigateTo("/products");
+    private string GetTypeColor(string? t) => t == "Component" ? "bg-warning text-dark" : "bg-secondary text-white";
+    private string GetTypeName(string? t) => t == "Component" ? "반제품" : "원자재";
+}
+
+<style>
+    .animate-fade-in {
+        animation: fadeIn 0.2s ease-in;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+</style>

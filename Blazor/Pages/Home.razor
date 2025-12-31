@@ -1,0 +1,146 @@
+﻿@page "/"
+@using Supabase.Interfaces
+@using Supabase.Postgrest
+@using ProfitMate_V2.Models
+@inject Supabase.Client Supabase
+
+<PageTitle>대시보드 - 소복</PageTitle>
+
+<div class="container mt-5">
+    <div class="text-center mb-5">
+        <!-- [수정] 로고 이미지 적용 -->
+        <div class="logo-circle mx-auto mb-3 shadow-sm">
+            <img src="images/logo.png" alt="소복 로고" class="logo-img" onerror="this.src='https://placehold.co/100x100?text=Sobok'" />
+        </div>
+        <!-- [수정] 브랜드명 및 슬로건 변경 -->
+        <h1 class="fw-bold text-dark brand-title">소복</h1>
+        <p class="text-muted brand-slogan">소복, 복잡함은 덜고 이익은 채우고</p>
+    </div>
+
+    <!-- 로딩 중일 때 -->
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">현황을 불러오는 중...</p>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4 justify-content-center">
+            <!-- 1. 완제품 카드 -->
+            <div class="col-md-4">
+                <div class="card shadow-sm border-success h-100 hover-card">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3 fs-1">🎁</div>
+                        <h5 class="text-success fw-bold">판매 완제품</h5>
+                        <h2 class="fw-bold my-3 display-4">@productCount</h2>
+                        <a href="/products" class="btn btn-outline-success btn-sm mt-2">관리하기</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 반제품 카드 -->
+            <div class="col-md-4">
+                <div class="card shadow-sm border-warning h-100 hover-card">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3 fs-1">🍰</div>
+                        <h5 class="text-warning text-dark fw-bold">반제품 (중간재)</h5>
+                        <h2 class="fw-bold my-3 display-4">@componentCount</h2>
+                        <a href="/products" class="btn btn-outline-warning text-dark btn-sm mt-2">관리하기</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. 원자재 카드 -->
+            <div class="col-md-4">
+                <div class="card shadow-sm border-secondary h-100 hover-card">
+                    <div class="card-body text-center p-4">
+                        <div class="mb-3 fs-1">📦</div>
+                        <h5 class="text-secondary fw-bold">원자재</h5>
+                        <h2 class="fw-bold my-3 display-4">@materialCount</h2>
+                        <a href="/products" class="btn btn-outline-secondary btn-sm mt-2">관리하기</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-5">
+            <p class="text-muted small">데이터베이스 연결 상태: <span class="text-success fw-bold">● 정상</span></p>
+        </div>
+    }
+</div>
+
+@code {
+    private int productCount = 0;
+    private int componentCount = 0;
+    private int materialCount = 0;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // 통합된 Items 테이블에서 '유형(type)' 정보만 가져와서 카운트
+            var result = await Supabase.From<Item>()
+                .Select("type")
+                .Get();
+
+            var items = result.Models;
+
+            productCount = items.Count(x => x.Type == "Product");
+            componentCount = items.Count(x => x.Type == "Component");
+            materialCount = items.Count(x => x.Type == "Material");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
+
+<style>
+    .logo-circle {
+        width: 100px;
+        height: 100px;
+        background: white;
+        border-radius: 30%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .logo-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .brand-title {
+        font-family: 'Pretendard', sans-serif;
+        font-size: 2.5rem;
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+        letter-spacing: -1px;
+    }
+
+    .brand-slogan {
+        font-family: 'Pretendard', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 500;
+    }
+
+    .hover-card:hover {
+        transform: translateY(-5px);
+        transition: transform 0.2s;
+    }
+
+    .display-4 {
+        font-size: 3.5rem;
+    }
+</style>

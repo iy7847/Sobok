@@ -1,0 +1,345 @@
+﻿@page "/shop/{ShopId}"
+@layout ProfitMate_V2.Layout.PublicLayout
+@using Supabase.Interfaces
+@using Supabase.Postgrest
+@using ProfitMate_V2.Models
+@using Newtonsoft.Json
+@using System.Text.RegularExpressions
+@inject Supabase.Client Supabase
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>주문서 - @shopName</PageTitle>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height: 80vh;">
+        <div class="text-center">
+            <div class="spinner-border text-primary mb-3" role="status"></div>
+            <p class="text-muted">가게 정보를 불러오는 중입니다...</p>
+        </div>
+    </div>
+}
+else if (shopProfile == null)
+{
+    <div class="container mt-5 text-center">
+        <h4 class="fw-bold">존재하지 않는 가게입니다.</h4>
+        <p class="text-muted">링크를 다시 확인해주세요.</p>
+    </div>
+}
+else
+{
+    <div class="pb-5 mb-5">
+        <!-- 1. 가게 헤더 정보 -->
+        <div class="shop-header p-4 text-center border-bottom bg-white">
+            <div class="logo-circle mx-auto mb-3 shadow-sm">
+                <img src="images/logo.png" alt="로고" class="logo-img" onerror="this.src='https://placehold.co/100x100?text=Sobok'" />
+            </div>
+            <h3 class="fw-bold text-dark mb-1">@shopName</h3>
+            <p class="text-muted small mb-3">@shopNotice</p>
+            @if (!string.IsNullOrEmpty(shopBankAccount))
+            {
+                <div class="badge bg-light text-dark border p-2 fw-normal w-100 text-truncate" @onclick="CopyAccount" style="cursor: pointer;">
+                    <i class="bi bi-bank me-1"></i> @shopBankAccount <i class="bi bi-files ms-1 text-muted"></i>
+                </div>
+            }
+        </div>
+
+        <!-- 2. 상품 선택 영역 -->
+        <div class="p-3">
+            <h6 class="fw-bold mb-3"><i class="bi bi-bag-check me-2 text-primary"></i>상품 선택</h6>
+            @if (products == null || !products.Any())
+            {
+                <div class="text-center py-5 bg-light rounded-4 border border-dashed">
+                    <i class="bi bi-box-seam fs-1 text-muted d-block mb-2"></i>
+                    <p class="text-muted small">현재 판매 중인 상품이 없습니다.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var p in products)
+                {
+                    <div class="card mb-3 border-0 shadow-sm rounded-4 overflow-hidden">
+                        <div class="card-body p-3 d-flex align-items-center">
+                            <div class="flex-grow-1">
+                                <h6 class="fw-bold m-0">@p.Name</h6>
+                                <span class="text-primary fw-bold">@p.SellingPrice.ToString("N0")원</span>
+                            </div>
+                            <div class="d-flex align-items-center bg-light rounded-pill p-1">
+                                <button class="btn btn-sm btn-white rounded-circle shadow-sm" style="width: 32px; height: 32px;" @onclick="() => UpdateQty(p, -1)">-</button>
+                                <span class="mx-3 fw-bold" style="min-width: 20px; text-align: center;">@p.OrderQty</span>
+                                <button class="btn btn-sm btn-primary rounded-circle shadow-sm" style="width: 32px; height: 32px;" @onclick="() => UpdateQty(p, 1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- 3. 추가 옵션 및 고객 정보 -->
+        <div class="p-3">
+            <h6 class="fw-bold mb-3"><i class="bi bi-pencil-square me-2 text-primary"></i>주문 정보 입력</h6>
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">주문자 성함 <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control border-0 bg-light" placeholder="실명을 입력해주세요" @bind="customerName" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-bold">연락처 <span class="text-danger">*</span></label>
+                    <!-- [수정] 입력 시 자동 하이픈 생성 로직 적용 -->
+                    <input type="tel" class="form-control border-0 bg-light"
+                           placeholder="010-0000-0000"
+                           value="@customerPhone"
+                           @oninput="OnPhoneInput" />
+                </div>
+
+                @foreach (var el in formElements)
+                {
+                    <div class="mb-3">
+                        @if (el.Type == "Notice")
+                        {
+                            <div class="alert alert-info py-2 px-3 small border-0 mb-0">@el.Label</div>
+                        }
+                        else if (el.Type == "Image" && !string.IsNullOrEmpty(el.Options))
+                        {
+
+                            <img src="@el.Options" class="img-fluid rounded-3 mb-2 shadow-sm" />
+                        }
+                        else if (el.Type == "Text")
+                        {
+                            <label class="form-label small fw-bold">@el.Label @(el.IsRequired ? "*" : "")</label>
+                            <input type="text" class="form-control border-0 bg-light" @bind="singleSelections[el.Id]" />
+                        }
+                        else if (el.Type == "TextArea")
+                        {
+                            <label class="form-label small fw-bold">@el.Label @(el.IsRequired ? "*" : "")</label>
+                            <textarea class="form-control border-0 bg-light" rows="3" @bind="singleSelections[el.Id]"></textarea>
+                        }
+                        else if (el.Type == "Date")
+                        {
+                            <label class="form-label small fw-bold">@el.Label @(el.IsRequired ? "*" : "")</label>
+                            <input type="datetime-local" class="form-control border-0 bg-light" value="@singleSelections[el.Id]" @onchange="@(e => singleSelections[el.Id] = e.Value?.ToString() ?? "")" />
+                        }
+                        else if (el.Type == "Select")
+                        {
+                            <label class="form-label small fw-bold">@el.Label @(el.IsRequired ? "*" : "")</label>
+                            <select class="form-select border-0 bg-light" @bind="singleSelections[el.Id]">
+                                <option value="">-- 선택하세요 --</option>
+                                @foreach (var opt in el.Options.Split(','))
+                                {
+                                    <option value="@opt.Trim()">@opt.Trim()</option>
+                                }
+                            </select>
+                        }
+                        else if (el.Type == "Radio")
+                        {
+                            <label class="form-label small fw-bold d-block">@el.Label @(el.IsRequired ? "*" : "")</label>
+                            @foreach (var opt in el.Options.Split(','))
+                            {
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="@el.Id" id="@(el.Id + opt)" value="@opt.Trim()"
+                                           @onchange="@(e => singleSelections[el.Id] = opt.Trim())" checked="@(singleSelections.ContainsKey(el.Id) && singleSelections[el.Id] == opt.Trim())" />
+                                    <label class="form-check-label small" for="@(el.Id + opt)">@opt.Trim()</label>
+                                </div>
+                            }
+                        }
+                        else if (el.Type == "Checkbox")
+                        {
+                            <label class="form-label small fw-bold d-block">@el.Label @(el.IsRequired ? "*" : "")</label>
+                            @foreach (var opt in el.Options.Split(','))
+                            {
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="@(el.Id + opt)" @onchange="@(e => OnCheckboxChanged(el.Id, opt.Trim(), (bool)e.Value!))" />
+                                    <label class="form-check-label small" for="@(el.Id + opt)">@opt.Trim()</label>
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- 4. 하단 주문바 -->
+        <div class="fixed-bottom bg-white border-top p-3 shadow-lg" style="max-width: 600px; left: 50%; transform: translateX(-50%);">
+            <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                <span class="fw-bold text-muted">총 주문 금액</span>
+                <span class="fs-4 fw-bold text-primary">@FinalTotalPrice.ToString("N0")원</span>
+            </div>
+            <button class="btn btn-primary w-100 py-3 rounded-pill fw-bold fs-5 shadow" @onclick="SubmitOrder" disabled="@isSubmitting">
+                <span>@(isSubmitting ? "처리 중..." : "주문하기")</span>
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string ShopId { get; set; } = "";
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private UserProfile? shopProfile;
+    private List<PublicItem> products = new();
+    private List<FormElement> formElements = new();
+    private string customerName = "";
+    private string customerPhone = "";
+    private Dictionary<string, string> singleSelections = new();
+    private Dictionary<string, List<string>> multiSelections = new();
+
+    private string shopName => shopProfile?.CompanyName ?? "소복";
+    private string shopNotice => shopProfile?.ShopNotice ?? "";
+    private string shopBankAccount => shopProfile?.BankAccount ?? "";
+
+    protected override async Task OnInitializedAsync() { await LoadShopData(); }
+
+    private async Task LoadShopData()
+    {
+        try
+        {
+            isLoading = true;
+            shopProfile = await Supabase.From<UserProfile>().Where(p => p.Id == ShopId).Single();
+
+            if (shopProfile != null)
+            {
+                if (!string.IsNullOrEmpty(shopProfile.OrderFormConfig))
+                {
+                    formElements = JsonConvert.DeserializeObject<List<FormElement>>(shopProfile.OrderFormConfig) ?? new();
+                    foreach (var el in formElements) { if (el.Type != "Checkbox") singleSelections[el.Id] = ""; else multiSelections[el.Id] = new(); }
+                }
+
+                var productResult = await Supabase.From<Item>()
+                    .Where(x => x.Type == "Product")
+                    .Filter("user_id", global::Supabase.Postgrest.Constants.Operator.Equals, ShopId)
+                    .Get();
+
+                products = productResult.Models.Select(m => new PublicItem
+                {
+                    Id = m.Id,
+                    Name = m.Name,
+                    SellingPrice = m.SellingPrice,
+                    OrderQty = 0
+                }).ToList();
+            }
+        }
+        catch (Exception ex) { Console.WriteLine($"Shop Load Error: {ex.Message}"); }
+        finally { isLoading = false; }
+    }
+
+    private void UpdateQty(PublicItem p, int delta) { p.OrderQty = Math.Max(0, p.OrderQty + delta); }
+    private void OnCheckboxChanged(string elId, string option, bool isChecked) { if (!multiSelections.ContainsKey(elId)) multiSelections[elId] = new(); if (isChecked) multiSelections[elId].Add(option); else multiSelections[elId].Remove(option); }
+    private double FinalTotalPrice => products.Sum(p => p.SellingPrice * p.OrderQty) + singleSelections.Values.Sum(v => ParseOptionPrice(v)) + multiSelections.Values.SelectMany(x => x).Sum(v => ParseOptionPrice(v));
+    private double ParseOptionPrice(string t) { var m = Regex.Match(t, @"\(\+([0-9]+)\)"); return m.Success ? double.Parse(m.Groups[1].Value) : 0; }
+
+    // [추가] 전화번호 입력 가공 로직 (하이픈 자동 생성)
+    private void OnPhoneInput(ChangeEventArgs e)
+    {
+        var input = e.Value?.ToString() ?? "";
+        var digits = new string(input.Where(char.IsDigit).ToArray());
+
+        if (digits.Length > 11) digits = digits.Substring(0, 11);
+
+        if (digits.Length < 4) customerPhone = digits;
+        else if (digits.Length < 7) customerPhone = $"{digits.Substring(0, 3)}-{digits.Substring(3)}";
+        else if (digits.Length < 11) customerPhone = $"{digits.Substring(0, 3)}-{digits.Substring(3, 3)}-{digits.Substring(6)}";
+        else customerPhone = $"{digits.Substring(0, 3)}-{digits.Substring(3, 4)}-{digits.Substring(7)}";
+    }
+
+    // [추가] 전화번호 형식 유효성 검사 (010-0000-0000)
+    private bool IsValidPhone(string phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone)) return false;
+        // 한국 휴대폰 번호 정규식 (010, 011, 016, 017, 018, 019 대응)
+        return Regex.IsMatch(phone, @"^01[016789]-[0-9]{3,4}-[0-9]{4}$");
+    }
+
+    private async Task SubmitOrder()
+    {
+        // [수정] 성함 필수 입력 체크
+        if (string.IsNullOrWhiteSpace(customerName))
+        {
+            await JS.InvokeVoidAsync("alert", "성함을 입력해주세요.");
+            return;
+        }
+
+        // [수정] 연락처 유효성 검사 적용
+        if (!IsValidPhone(customerPhone))
+        {
+            await JS.InvokeVoidAsync("alert", "올바른 연락처 형식이 아닙니다.\n(예: 010-0000-0000)");
+            return;
+        }
+
+        if (products.Sum(p => p.OrderQty) == 0)
+        {
+            await JS.InvokeVoidAsync("alert", "최소 1개 이상의 상품을 선택해주세요.");
+            return;
+        }
+
+        // 동적 폼 필수 항목 체크
+        foreach (var el in formElements.Where(x => x.IsRequired))
+        {
+            if (el.Type == "Checkbox") { if (multiSelections[el.Id].Count == 0) { await JS.InvokeVoidAsync("alert", $"[{el.Label}] 항목은 필수입니다."); return; } }
+            else { if (string.IsNullOrEmpty(singleSelections[el.Id])) { await JS.InvokeVoidAsync("alert", $"[{el.Label}] 항목은 필수입니다."); return; } }
+        }
+
+        isSubmitting = true;
+        try
+        {
+            var customData = new List<dynamic>();
+            foreach (var el in formElements.Where(e => e.Type != "Notice" && e.Type != "Image"))
+            {
+                string val = el.Type == "Checkbox" ? string.Join(", ", multiSelections[el.Id]) : (singleSelections.ContainsKey(el.Id) ? singleSelections[el.Id] : "");
+                if (!string.IsNullOrEmpty(val)) customData.Add(new { label = el.Label, value = val });
+            }
+            var orderItems = products.Where(p => p.OrderQty > 0).Select(p => new { item_name = p.Name, quantity = p.OrderQty, price = p.SellingPrice }).ToList();
+
+            var parameters = new Dictionary<string, object> {
+                { "p_shop_id", ShopId },
+                { "p_customer_name", customerName },
+                { "p_customer_phone", customerPhone },
+                { "p_total_amount", FinalTotalPrice },
+                { "p_request_note", "" },
+                { "p_custom_data", customData },
+                { "p_items", orderItems }
+            };
+
+            await Supabase.Rpc("submit_order", parameters);
+            await JS.InvokeVoidAsync("alert", "주문이 정상적으로 접수되었습니다! 사장님이 확인 후 연락드릴 예정입니다.");
+            Nav.NavigateTo(Nav.Uri, true);
+        }
+        catch (Exception ex) { await JS.InvokeVoidAsync("alert", $"실패: {ex.Message}"); }
+        finally { isSubmitting = false; }
+    }
+    private async Task CopyAccount() { await JS.InvokeVoidAsync("navigator.clipboard.writeText", shopBankAccount); await JS.InvokeVoidAsync("alert", "계좌번호가 복사되었습니다."); }
+}
+
+<style>
+    .logo-circle {
+        width: 80px;
+        height: 80px;
+        background: white;
+        border-radius: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .logo-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .shop-header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .btn-white {
+        background-color: white;
+        border: 1px solid #dee2e6;
+    }
+
+    .pb-5 {
+        padding-bottom: 120px !important;
+    }
+</style>

@@ -1,0 +1,459 @@
+﻿@page "/login"
+@layout ProfitMate_V2.Layout.LoginLayout
+@using Supabase.Interfaces
+@using Supabase.Gotrue
+@using ProfitMate_V2.Models
+@using ProfitMate_V2.Layout
+@using Newtonsoft.Json
+@inject Supabase.Client Supabase
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>@(isLoginMode ? "로그인" : "회원가입") - 소복</PageTitle>
+
+<!-- 자동 로그인 확인 중일 때 로딩 화면 -->
+@if (checkingAuth)
+{
+    <div class="login-container">
+        <div class="text-center animate-fade-in">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <h5 class="fw-bold text-dark">소복</h5>
+            <p class="text-muted small">자동 로그인 중입니다...</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="login-container">
+        <div class="login-content">
+            <!-- 로고 및 브랜드 영역 -->
+            <div class="text-center mb-5">
+                <div class="logo-circle mx-auto mb-3 shadow-sm">
+                    <img src="images/logo.png" alt="소복 로고" class="logo-img" onerror="this.src='https://placehold.co/100x100?text=Sobok'" />
+                </div>
+                <h1 class="brand-title">소복</h1>
+                <p class="brand-slogan">소복, 복잡함은 덜고 이익은 채우고</p>
+            </div>
+
+            <div class="d-flex justify-content-center mb-4 border-bottom">
+                <button class="btn btn-link text-decoration-none fw-bold pb-2 @(isLoginMode ? "tab-active" : "text-muted")"
+                        @onclick="() => SwitchMode(true)">
+                    로그인
+                </button>
+                <button class="btn btn-link text-decoration-none fw-bold pb-2 @(!isLoginMode ? "tab-active" : "text-muted")"
+                        @onclick="() => SwitchMode(false)">
+                    회원가입
+                </button>
+            </div>
+
+            <EditForm Model="this" OnValidSubmit="HandleSubmit">
+
+                <div class="form-floating mb-3">
+                    <input type="email" class="form-control" id="floatingInput" placeholder="name@example.com" @bind="email" required />
+                    <label for="floatingInput">이메일 주소</label>
+                </div>
+                <div class="form-floating mb-3">
+                    <input type="password" class="form-control" id="floatingPassword" placeholder="Password" @bind="password" required />
+                    <label for="floatingPassword">비밀번호 (6자 이상)</label>
+                </div>
+
+                @if (isLoginMode)
+                {
+                    <div class="d-flex justify-content-between align-items-center mb-3 px-1">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="rememberMe" @bind="rememberMe">
+                            <label class="form-check-label text-muted small" for="rememberMe">
+                                자동 로그인
+                            </label>
+                        </div>
+                        <a href="#" class="text-decoration-none text-muted small" @onclick:preventDefault>비밀번호 찾기</a>
+                    </div>
+                }
+
+                @if (!isLoginMode)
+                {
+                    <div class="animate-fade-in">
+                        <div class="form-floating mb-3">
+                            <input type="password" class="form-control @(passwordMatch ? "" : "is-invalid")" id="floatingConfirm" placeholder="Password" @bind="confirmPassword" @bind:event="oninput" required />
+                            <label for="floatingConfirm">비밀번호 확인</label>
+                        </div>
+
+                        <h6 class="mt-4 mb-3 fw-bold text-secondary border-bottom pb-2">필수 프로필 작성</h6>
+
+                        <div class="form-floating mb-2">
+                            <input type="text" class="form-control" placeholder="상호명" @bind="companyName" required />
+                            <label>상호명 (예: 소복 베이커리)</label>
+                        </div>
+                        <div class="form-floating mb-2">
+                            <input type="text" class="form-control" placeholder="대표자명" @bind="representativeName" required />
+                            <label>대표자명</label>
+                        </div>
+                        <div class="form-floating mb-2">
+                            <input type="tel" class="form-control" placeholder="010-0000-0000"
+                                   value="@phoneNumber" @oninput="OnPhoneNumberInput" required />
+                            <label>연락처 (숫자만 입력)</label>
+                        </div>
+                        <div class="form-floating mb-2">
+                            <input type="text" class="form-control" placeholder="업태/종목" @bind="businessType" />
+                            <label>업태/종목 (선택)</label>
+                        </div>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger d-flex align-items-center mt-3" role="alert">
+                        <i class="bi bi-exclamation-circle-fill me-2"></i>
+                        <div class="small">@errorMessage</div>
+                    </div>
+                }
+
+                <div class="d-grid gap-2 mt-4 mb-4">
+                    <button type="submit" class="btn btn-primary btn-lg fw-bold shadow-sm p-3 login-btn" disabled="@(isLoading || (!isLoginMode && !passwordMatch))">
+                        @if (isLoading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span>처리 중...</span>
+                        }
+                        else
+                        {
+                            <span>@(isLoginMode ? "로그인" : "프로필 작성 완료 및 가입")</span>
+                        }
+                    </button>
+                </div>
+
+                <!-- [추가] 로그인 화면 앱 설치 버튼 -->
+                <div class="text-center pb-3">
+                    <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" @onclick="InstallPwa">
+                        <i class="bi bi-download me-1"></i> 앱으로 설치하기
+                    </button>
+                </div>
+            </EditForm>
+
+            <div class="text-center text-muted x-small pb-4">
+                &copy; 2025 Sobok. All rights reserved.
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool isLoginMode = true;
+    private bool checkingAuth = true;
+    private bool rememberMe = true;
+
+    private string email = "";
+    private string password = "";
+
+    private string confirmPassword = "";
+    private string companyName = "";
+    private string representativeName = "";
+    private string phoneNumber = "";
+    private string businessType = "";
+
+    private string errorMessage = "";
+    private bool isLoading = false;
+    private bool passwordMatch => string.IsNullOrEmpty(password) || password == confirmPassword;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // [수정] 1. 메모리에 세션이 있는지 확인 (새로고침 직후에는 보통 없음)
+            var session = Supabase.Auth.CurrentSession;
+
+            // [수정] 2. 없으면 로컬 스토리지에서 복구 시도
+            if (session == null)
+            {
+                var storedJson = await JS.InvokeAsync<string>("localStorage.getItem", "sb_session");
+                if (!string.IsNullOrEmpty(storedJson))
+                {
+                    try
+                    {
+                        var storedSession = JsonConvert.DeserializeObject<Session>(storedJson);
+                        if (storedSession != null && !string.IsNullOrEmpty(storedSession.AccessToken))
+                        {
+                            // 저장된 토큰으로 세션 복구
+                            await Supabase.Auth.SetSession(storedSession.AccessToken, storedSession.RefreshToken);
+                            session = Supabase.Auth.CurrentSession;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"세션 복구 실패: {ex.Message}");
+                        // 복구 실패 시 스토리지 비우기
+                        await JS.InvokeVoidAsync("localStorage.removeItem", "sb_session");
+                    }
+                }
+            }
+
+            // 3. 세션 유효성 확인 후 이동
+            if (session != null && session.User != null)
+            {
+                Nav.NavigateTo("/");
+            }
+            else
+            {
+                checkingAuth = false;
+            }
+        }
+        catch
+        {
+            checkingAuth = false;
+        }
+    }
+
+    private void SwitchMode(bool loginMode)
+    {
+        isLoginMode = loginMode;
+        errorMessage = "";
+        password = "";
+        confirmPassword = "";
+    }
+
+    private void OnPhoneNumberInput(ChangeEventArgs e)
+    {
+        var input = e.Value?.ToString() ?? "";
+        var digits = new string(input.Where(char.IsDigit).ToArray());
+
+        if (digits.Length > 11) digits = digits.Substring(0, 11);
+
+        if (digits.Length < 4) phoneNumber = digits;
+        else if (digits.Length < 7) phoneNumber = $"{digits.Substring(0, 3)}-{digits.Substring(3)}";
+        else if (digits.Length < 11) phoneNumber = $"{digits.Substring(0, 3)}-{digits.Substring(3, 3)}-{digits.Substring(6)}";
+        else phoneNumber = $"{digits.Substring(0, 3)}-{digits.Substring(3, 4)}-{digits.Substring(7)}";
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (isLoginMode) await SignIn();
+        else await SignUp();
+    }
+
+    private async Task SignIn()
+    {
+        if (isLoading) return;
+        isLoading = true;
+        errorMessage = "";
+
+        try
+        {
+            var session = await Supabase.Auth.SignIn(email, password);
+            if (session != null)
+            {
+                // [수정] 자동 로그인 체크 시 로컬 스토리지에 세션 저장
+                if (rememberMe)
+                {
+                    string json = JsonConvert.SerializeObject(session);
+                    await JS.InvokeVoidAsync("localStorage.setItem", "sb_session", json);
+                }
+                else
+                {
+                    await JS.InvokeVoidAsync("localStorage.removeItem", "sb_session");
+                }
+
+                Nav.NavigateTo("/");
+            }
+        }
+        catch (Exception ex)
+        {
+            if (ex.Message.Contains("Invalid login credentials"))
+                errorMessage = "이메일 또는 비밀번호가 일치하지 않습니다.";
+            else
+                errorMessage = $"로그인 오류: {ex.Message}";
+        }
+        finally { isLoading = false; }
+    }
+
+    private async Task SignUp()
+    {
+        if (password != confirmPassword) { errorMessage = "비밀번호가 일치하지 않습니다."; return; }
+        if (string.IsNullOrWhiteSpace(companyName) || string.IsNullOrWhiteSpace(representativeName))
+        {
+            errorMessage = "상호명과 대표자명은 필수입니다.";
+            return;
+        }
+
+        isLoading = true;
+        errorMessage = "";
+
+        try
+        {
+            var session = await Supabase.Auth.SignUp(email, password);
+
+            if (session?.User != null)
+            {
+                var loginSession = await Supabase.Auth.SignIn(email, password);
+
+                if (loginSession?.User != null)
+                {
+                    try
+                    {
+                        var cleanPhone = phoneNumber?.Replace("-", "").Trim() ?? "";
+                        var newProfile = new UserProfile
+                        {
+                            Id = loginSession.User.Id,
+                            Email = email,
+                            Name = representativeName,
+                            CompanyName = companyName,
+                            RepresentativeName = representativeName,
+                            PhoneNumber = cleanPhone,
+                            BusinessType = businessType,
+                            SubscriptionEndDate = DateTime.Now.AddDays(14)
+                        };
+
+                        await Supabase.From<UserProfile>().Upsert(newProfile);
+
+                        // [추가] 회원가입 후 자동 로그인 처리 (기본 활성화)
+                        string json = JsonConvert.SerializeObject(loginSession);
+                        await JS.InvokeVoidAsync("localStorage.setItem", "sb_session", json);
+                    }
+                    catch (Exception profileEx)
+                    {
+                        Console.WriteLine($"프로필 저장 실패: {profileEx.Message}");
+                    }
+
+                    await JS.InvokeVoidAsync("alert", "환영합니다! 소복과 함께 이익을 채워보세요.");
+                    Nav.NavigateTo("/");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"가입 실패: {ex.Message}";
+        }
+        finally { isLoading = false; }
+    }
+
+    private async Task InstallPwa()
+    {
+        var result = await JS.InvokeAsync<string>("triggerPwaInstall");
+
+        if (result == "unavailable")
+        {
+            bool isIos = await JS.InvokeAsync<bool>("eval", "(/iPad|iPhone|iPod/.test(navigator.userAgent))");
+
+            if (isIos)
+            {
+                await JS.InvokeVoidAsync("alert", "아이폰: 하단 [공유] 버튼 -> [홈 화면에 추가]를 선택하세요.");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "이미 설치되었거나 브라우저 메뉴에서 설치해야 합니다.");
+            }
+        }
+    }
+}
+
+<style>
+    .login-container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        width: 100%;
+        background-color: white;
+    }
+
+    .login-content {
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    /* 로고 원형 스타일 */
+    .logo-circle {
+        width: 120px;
+        height: 120px;
+        background: white;
+        border-radius: 30%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+
+    .logo-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .brand-title {
+        font-family: 'Pretendard', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: #333;
+        margin-bottom: 0.5rem;
+        letter-spacing: -1px;
+    }
+
+    .brand-slogan {
+        font-family: 'Pretendard', sans-serif;
+        font-size: 1rem;
+        color: #666;
+        font-weight: 500;
+    }
+
+    .form-control {
+        height: 55px;
+        border-radius: 12px;
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+    }
+
+        .form-control:focus {
+            background-color: #fff;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+
+    .tab-active {
+        color: #6366f1 !important;
+        border-bottom: 3px solid #6366f1 !important;
+    }
+
+    .login-btn {
+        background-color: #6366f1;
+        border-color: #6366f1;
+    }
+
+        .login-btn:hover {
+            background-color: #4f46e5;
+            border-color: #4f46e5;
+        }
+
+    .btn-lg {
+        height: 55px;
+        border-radius: 12px;
+        font-size: 1.1rem;
+    }
+
+    .x-small {
+        font-size: 0.75rem;
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>

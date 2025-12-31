@@ -1,0 +1,147 @@
+﻿<div class="main-sidebar @(collapseNavMenu ? "" : "expanded")">
+
+    <!-- 메뉴 헤더 및 앱 제목 -->
+    <div class="sidebar-header">
+        <div class="d-flex justify-content-between align-items-center w-100">
+            <!-- 토글 버튼 (햄버거 메뉴) -->
+            <button title="Navigation menu" class="btn btn-dark sidebar-toggler" @onclick="ToggleNavMenu">
+                <i class="bi @(collapseNavMenu ? "bi-list" : "bi-x-lg") fs-5"></i>
+            </button>
+
+            <!-- 앱 제목/로고 -->
+            <a class="navbar-brand fw-bold fs-5 @(collapseNavMenu ? "d-none" : "d-inline")" href="">
+                <i class="bi bi-currency-dollar me-2"></i> ProfitMate
+            </a>
+        </div>
+    </div>
+
+    <!-- 메뉴 항목 컨테이너 -->
+    <nav class="flex-column nav-menu-list">
+
+        <!-- 대시보드 -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link fw-medium" href="" Match="NavLinkMatch.All">
+                <i class="bi bi-speedometer2 me-3 fs-5" aria-hidden="true"></i> <span class="nav-text">대시보드</span>
+            </NavLink>
+        </div>
+
+        <!-- 품목 관리 -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link fw-medium" href="products">
+                <i class="bi bi-box-seam me-3 fs-5" aria-hidden="true"></i> <span class="nav-text">품목 관리 (BOM)</span>
+            </NavLink>
+        </div>
+
+        <!-- 구분선 (시각적 그룹화) -->
+        <hr class="my-2 mx-3 text-white-50" />
+
+        <!-- 고정비 관리 (Next Step) -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link fw-medium" href="fixedcosts">
+                <i class="bi bi-wallet2 me-3 fs-5" aria-hidden="true"></i> <span class="nav-text">고정비 관리</span>
+            </NavLink>
+        </div>
+
+        <!-- 마진 분석 (Final Step) -->
+        <div class="nav-item px-3">
+            <NavLink class="nav-link fw-medium" href="profitanalysis">
+                <i class="bi bi-graph-up me-3 fs-5" aria-hidden="true"></i> <span class="nav-text">마진 분석</span>
+            </NavLink>
+        </div>
+
+    </nav>
+</div>
+
+@code {
+    private bool collapseNavMenu = true; // true: 축소(기본), false: 확장
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}
+
+<style>
+    /* ---------------------------------------------------- */
+    /* [전문가 CSS] 왼쪽에서 오른쪽으로 확장되는 사이드바 정의 */
+    /* ---------------------------------------------------- */
+    .main-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        z-index: 1000;
+        background-color: #343a40; /* Dark Background */
+        color: white;
+        transition: width 0.3s ease-in-out;
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding-top: 15px;
+    }
+
+    /* 축소 상태 (기본) */
+    .main-sidebar {
+        width: 65px; /* 아이콘만 보이도록 */
+    }
+
+        .main-sidebar .nav-text, .main-sidebar .navbar-brand {
+            opacity: 0;
+            transition: opacity 0.1s;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        .main-sidebar .sidebar-toggler {
+            margin-left: 5px;
+        }
+
+        /* 확장 상태 */
+        .main-sidebar.expanded {
+            width: 250px;
+        }
+
+            .main-sidebar.expanded .nav-text, .main-sidebar.expanded .navbar-brand {
+                opacity: 1;
+                pointer-events: auto;
+                transition: opacity 0.3s ease-in 0.1s;
+            }
+
+    /* 사이드바 헤더 스타일 */
+    .sidebar-header {
+        height: 50px;
+        padding: 0 10px;
+        margin-bottom: 10px;
+    }
+
+    /* 네비게이션 링크 */
+    .nav-link {
+        color: #adb5bd;
+        padding: 10px 10px;
+        display: flex;
+        align-items: center;
+        border-radius: 5px;
+    }
+
+        .nav-link:hover, .nav-link.active {
+            color: white;
+            background-color: #495057;
+        }
+
+        /* 아이콘 크기 통일 */
+        .nav-link i {
+            min-width: 24px; /* 아이콘 공간 확보 */
+        }
+
+    /* 메인 콘텐츠 영역을 사이드바 너비만큼 밀어내야 합니다.
+           이 CSS는 NavMenu에 있지만, MainLayout에 적용되어야 합니다.
+           (현재 환경에서는 MainLayout을 가정하고 사용자가 메인 콘텐츠에
+            margin-left를 적용해야 합니다.)
+        */
+    body {
+        margin-left: 65px;
+    }
+
+        body.expanded-layout {
+            margin-left: 250px;
+        }
+</style>

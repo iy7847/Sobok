@@ -1,0 +1,303 @@
+﻿@page "/order-config"
+@using Supabase.Interfaces
+@using ProfitMate_V2.Models
+@using Newtonsoft.Json
+@using Supabase.Gotrue
+@inject Supabase.Client Supabase
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>주문서 디자인 - 소복</PageTitle>
+
+<div class="container mt-4 pb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark m-0">🎨 주문서 디자인 설정</h3>
+            <p class="text-muted small m-0">옵션에 금액을 추가하려면 '이름 (+1000)' 형식으로 입력하세요.</p>
+        </div>
+        <button class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold" @onclick="SaveConfig">
+            <i class="bi bi-check-lg me-1"></i> 저장하기
+        </button>
+    </div>
+
+    <div class="row g-4">
+        <!-- 1. 왼쪽: 미리보기 및 편집 영역 -->
+        <div class="col-lg-8">
+
+            <!-- 기본 정보 -->
+            <div class="card shadow-sm border-0 mb-4 rounded-4 overflow-hidden">
+                <div class="card-header bg-white py-3 border-bottom-0">
+                    <h6 class="fw-bold m-0 text-dark"><i class="bi bi-shop me-2 text-primary"></i>기본 정보</h6>
+                </div>
+                <div class="card-body bg-light">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">상호명</label>
+                        <input type="text" class="form-control border-0 shadow-sm" @bind="configCompanyName" placeholder="예: 소복 베이커리" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">인사말</label>
+                        <textarea class="form-control border-0 shadow-sm" rows="2" @bind="configShopNotice" placeholder="예: 안녕하세요! 신선한 재료로 당일 생산합니다."></textarea>
+                    </div>
+                    <div>
+                        <label class="form-label fw-bold small text-muted">계좌정보</label>
+                        <input type="text" class="form-control border-0 shadow-sm" @bind="configBankAccount" placeholder="예: 카카오뱅크 3333-00-1234567 박일용" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- 항목 리스트 -->
+            <div class="form-elements-container">
+                @foreach (var item in formElements)
+                {
+                    <div @key="item" class="card mb-3 border-0 shadow-sm rounded-3 drag-item" draggable="true"
+                         @ondragstart="() => OnDragStart(item)" @ondrop="() => OnDrop(item)" @ondragenter="() => OnDragEnter(item)" @ondragover:preventDefault>
+
+                        <div class="card-body p-0">
+                            <div class="d-flex justify-content-between align-items-center p-2 border-bottom bg-light rounded-top-3">
+                                <div class="d-flex align-items-center text-muted" style="cursor: move;">
+                                    <i class="bi bi-grip-vertical fs-5 me-2"></i>
+                                    <span class="badge bg-white text-dark border me-2">@GetTypeName(item.Type)</span>
+                                </div>
+                                <button class="btn btn-sm btn-light text-danger border-0" @onclick="() => RemoveElement(item)"><i class="bi bi-trash"></i></button>
+                            </div>
+
+                            <div class="p-3">
+                                @if (item.Type == "Image")
+                                {
+                                    <div class="text-center mb-3">
+                                        @if (!string.IsNullOrEmpty(item.Options))
+                                        {
+                                            <img src="@item.Options" class="img-fluid rounded mb-2" style="max-height: 200px;" />
+                                        }
+                                        <label class="btn btn-sm btn-outline-primary cursor-pointer">
+                                            <i class="bi bi-upload me-1"></i> 이미지 업로드
+                                            <InputFile OnChange="@(e => HandleImageUpload(e, item))" style="display:none;" accept="image/*" />
+                                        </label>
+                                    </div>
+                                }
+
+                                <div class="mb-2">
+                                    @if (item.Type == "Notice")
+                                    {
+                                        <label class="form-label x-small text-muted fw-bold">안내 문구</label>
+                                        <textarea class="form-control bg-light" @bind="item.Label" rows="3"></textarea>
+                                    }
+                                    else if (item.Type != "Image")
+                                    {
+                                        <label class="form-label x-small text-muted fw-bold">항목 제목</label>
+                                        <input type="text" class="form-control fw-bold" @bind="item.Label" />
+                                    }
+                                </div>
+
+                                @if (item.Type == "Select" || item.Type == "Radio" || item.Type == "Checkbox")
+                                {
+                                    <div class="mb-2">
+                                        <label class="form-label x-small text-muted fw-bold">옵션 입력 (쉼표로 구분)</label>
+                                        <input type="text" class="form-control form-control-sm" @bind="item.Options"
+                                               placeholder="예: 기본, 선물포장 (+1000), 보냉백 (+500)" />
+                                        <div class="form-text x-small text-primary">
+                                            Tip: <strong>(+금액)</strong>을 붙이면 자동으로 결제 금액에 추가됩니다.
+                                        </div>
+                                    </div>
+                                }
+
+                                @if (item.Type != "Notice" && item.Type != "Image")
+                                {
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="checkbox" id="req_@item.Id" @bind="item.IsRequired">
+                                        <label class="form-check-label small" for="req_@item.Id">필수 입력</label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- 2. 오른쪽: 도구 상자 -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 sticky-top" style="top: 80px; z-index: 100;">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h6 class="fw-bold m-0 text-dark">항목 추가</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <small class="text-muted fw-bold mt-2">입력 항목</small>
+                        <button class="btn btn-outline-dark text-start py-2" @onclick='() => AddElement("Text", "텍스트 입력")'><i class="bi bi-input-cursor-text me-2 text-primary"></i> 텍스트 (한 줄)</button>
+                        <button class="btn btn-outline-dark text-start py-2" @onclick='() => AddElement("TextArea", "상세 내용 입력")'><i class="bi bi-textarea-t me-2 text-primary"></i> 텍스트 (여러 줄)</button>
+                        <button class="btn btn-outline-dark text-start py-2" @onclick='() => AddElement("Date", "날짜 선택")'><i class="bi bi-calendar-date me-2 text-primary"></i> 날짜/시간 선택</button>
+
+                        <small class="text-muted fw-bold mt-3">선택 항목 (금액 추가 가능)</small>
+                        <button class="btn btn-outline-dark text-start py-2" @onclick='() => AddElement("Radio", "하나만 선택")'><i class="bi bi-ui-radios me-2 text-success"></i> 라디오 버튼 (단일)</button>
+                        <button class="btn btn-outline-dark text-start py-2" @onclick='() => AddElement("Checkbox", "여러개 선택")'><i class="bi bi-ui-checks me-2 text-success"></i> 체크박스 (다중)</button>
+                        <button class="btn btn-outline-dark text-start py-2" @onclick='() => AddElement("Select", "목록에서 선택")'><i class="bi bi-menu-button-wide me-2 text-success"></i> 콤보박스 (드롭다운)</button>
+
+                        <small class="text-muted fw-bold mt-3">꾸미기</small>
+                        <button class="btn btn-outline-dark text-start py-2" @onclick='() => AddElement("Image", "")'><i class="bi bi-image me-2 text-info"></i> 이미지 추가</button>
+                        <button class="btn btn-outline-dark text-start py-2" @onclick='() => AddElement("Notice", "공지사항 입력")'><i class="bi bi-info-circle me-2 text-info"></i> 안내 문구</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<FormElement> formElements = new();
+    private UserProfile? myProfile;
+
+    private string configCompanyName = "";
+    private string configShopNotice = "";
+    private string configBankAccount = "";
+
+    private FormElement? draggedItem;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadConfig();
+    }
+
+    private async Task<Session?> GetSessionAsync()
+    {
+        var session = Supabase.Auth.CurrentSession;
+        if (session != null && session.User != null) return session;
+
+        try
+        {
+            var storedJson = await JS.InvokeAsync<string>("localStorage.getItem", "sb_session");
+            if (!string.IsNullOrEmpty(storedJson))
+            {
+                var storedSession = JsonConvert.DeserializeObject<Session>(storedJson);
+                if (storedSession != null && !string.IsNullOrEmpty(storedSession.AccessToken))
+                {
+                    await Supabase.Auth.SetSession(storedSession.AccessToken, storedSession.RefreshToken);
+                    return Supabase.Auth.CurrentSession;
+                }
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    private async Task LoadConfig()
+    {
+        try
+        {
+            var session = await GetSessionAsync();
+            if (session?.User == null) return;
+
+            var result = await Supabase.From<UserProfile>()
+                .Where(p => p.Id == session.User.Id)
+                .Single();
+
+            myProfile = result;
+
+            if (myProfile != null)
+            {
+                configCompanyName = myProfile.CompanyName ?? "";
+                configShopNotice = myProfile.ShopNotice ?? "";
+                configBankAccount = myProfile.BankAccount ?? "";
+
+                if (!string.IsNullOrEmpty(myProfile.OrderFormConfig))
+                {
+                    formElements = JsonConvert.DeserializeObject<List<FormElement>>(myProfile.OrderFormConfig) ?? new();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"설정 로드 실패: {ex.Message}");
+        }
+    }
+
+    private void AddElement(string type, string defaultLabel)
+    {
+        formElements.Add(new FormElement { Type = type, Label = defaultLabel });
+    }
+
+    private void RemoveElement(FormElement item)
+    {
+        formElements.Remove(item);
+    }
+
+    private void OnDragStart(FormElement item) { draggedItem = item; }
+    private void OnDragEnter(FormElement targetItem)
+    {
+        if (draggedItem != null && targetItem != draggedItem)
+        {
+            var oldIndex = formElements.IndexOf(draggedItem);
+            var newIndex = formElements.IndexOf(targetItem);
+            formElements.RemoveAt(oldIndex);
+            formElements.Insert(newIndex, draggedItem);
+        }
+    }
+    private void OnDrop(FormElement item) { draggedItem = null; }
+
+    private async Task HandleImageUpload(InputFileChangeEventArgs e, FormElement item)
+    {
+        try
+        {
+            var file = e.File;
+            if (file.Size > 5 * 1024 * 1024)
+            {
+                await JS.InvokeVoidAsync("alert", "이미지 크기는 5MB 이하여야 합니다.");
+                return;
+            }
+            var resizedFile = await file.RequestImageFileAsync(file.ContentType, 800, 800);
+            var buffer = new byte[resizedFile.Size];
+            await resizedFile.OpenReadStream().ReadAsync(buffer);
+            item.Options = $"data:{file.ContentType};base64,{Convert.ToBase64String(buffer)}";
+        }
+        catch { await JS.InvokeVoidAsync("alert", "이미지 업로드 실패"); }
+    }
+
+    private async Task SaveConfig()
+    {
+        var session = await GetSessionAsync();
+
+        if (session?.User == null)
+        {
+            await JS.InvokeVoidAsync("alert", "로그인이 필요합니다. (세션 만료)");
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        try
+        {
+            var updateModel = new UserProfile
+            {
+                Id = session.User.Id,
+                CompanyName = configCompanyName,
+                ShopNotice = configShopNotice,
+                BankAccount = configBankAccount,
+                OrderFormConfig = JsonConvert.SerializeObject(formElements),
+
+                Email = session.User.Email ?? "",
+                Name = configCompanyName
+            };
+
+            await Supabase.From<UserProfile>().Upsert(updateModel);
+
+            await JS.InvokeVoidAsync("alert", "저장되었습니다!");
+            Nav.NavigateTo("/orders");
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"저장 실패: {ex.Message}");
+        }
+    }
+
+    private string GetTypeName(string type) => type switch
+    {
+        "Text" => "단답형",
+        "TextArea" => "서술형",
+        "Radio" => "단일선택",
+        "Checkbox" => "다중선택",
+        "Select" => "목록선택",
+        "Date" => "날짜",
+        "Image" => "이미지",
+        "Notice" => "안내문구",
+        _ => type
+    };
+}

@@ -1,0 +1,215 @@
+﻿@page "/products"
+@using Supabase.Interfaces
+@using Supabase.Postgrest
+@using ProfitMate_V2.Models
+@using ProfitMate_V2.Shared
+@inject Supabase.Client Supabase
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<PageTitle>품목 관리 - 소복</PageTitle>
+
+<div class="container mt-4 pb-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="fw-bold text-dark m-0">📦 품목 관리</h3>
+            <p class="text-muted small m-0">사장님이 등록하신 품목들만 관리됩니다.</p>
+        </div>
+        <button class="btn btn-primary rounded-pill px-4 shadow-sm" @onclick="ShowAddForm">
+            <i class="bi bi-plus-lg me-1"></i> 새 품목 등록
+        </button>
+    </div>
+
+    <!-- 탭 메뉴 -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-2">
+            <ul class="nav nav-pills nav-fill gap-2">
+                <li class="nav-item">
+                    <a class="nav-link @(currentTab == "All" ? "active fw-bold" : "")" role="button" @onclick='() => ChangeTab("All")'>전체 보기</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link @(currentTab == "Product" ? "active fw-bold" : "")" role="button" @onclick='() => ChangeTab("Product")'>완제품</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link @(currentTab == "Component" ? "active fw-bold" : "")" role="button" @onclick='() => ChangeTab("Component")'>반제품</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link @(currentTab == "Material" ? "active fw-bold" : "")" role="button" @onclick='() => ChangeTab("Material")'>원자재</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    @if (isFormVisible)
+    {
+        <div class="card shadow mb-4 border-0">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="m-0 fw-bold text-primary">@(newItem.Id == 0 ? "✨ 새 품목 등록" : "✏️ 품목 정보 수정")</h5>
+                <button class="btn btn-close" @onclick="HideAddForm"></button>
+            </div>
+            <div class="card-body bg-light">
+                <EditForm Model="newItem" OnValidSubmit="SaveItem">
+                    <div class="row g-4">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold small">유형</label>
+                            <InputSelect class="form-select" @bind-Value="newItem.Type">
+                                <option value="Product">🎁 완제품</option>
+                                <option value="Component">🍰 반제품</option>
+                                <option value="Material">📦 원자재</option>
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold small">품목명</label>
+                            <InputText class="form-control" @bind-Value="newItem.Name" placeholder="예: 딸기 케이크" />
+                        </div>
+
+                        @if (newItem.Type == "Material")
+                        {
+                            <div class="col-md-4"><CurrencyInput Label="총 구매가" @bind-Value="newItem.PurchasePrice" Unit="원" /></div>
+                        }
+                        else
+                        {
+                            <div class="col-md-4"><CurrencyInput Label="판매가" @bind-Value="newItem.SellingPrice" Unit="원" /></div>
+                        }
+
+                        <div class="col-12 text-end pt-3 border-top">
+                            <button type="button" class="btn btn-outline-secondary me-2" @onclick="HideAddForm">취소</button>
+                            <button type="submit" class="btn btn-primary px-5" disabled="@isSaving">저장하기</button>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    <!-- 리스트 영역 -->
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="bg-light">
+                    <tr class="text-muted text-uppercase small">
+                        <th class="ps-4">유형</th>
+                        <th>품목명</th>
+                        <th class="text-end">단가/판매가</th>
+                        <th class="text-end pe-4">관리</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (isLoading)
+                    {
+                        <tr><td colspan="4" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>
+                    }
+                    else if (filteredItems.Count == 0)
+                    {
+                        <tr><td colspan="4" class="text-center py-5 text-muted">등록된 품목이 없습니다.</td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in filteredItems)
+                        {
+                            <tr>
+                                <td class="ps-4"><span class="badge rounded-pill @GetTypeBadgeClass(item.Type)">@GetTypeLabel(item.Type)</span></td>
+                                <td class="fw-bold">@item.Name</td>
+                                <td class="text-end">
+                                    @if (item.Type == "Material")
+                                    {
+                                        <span>@item.CostPrice.ToString("N2")원/g</span>
+                                    }
+                                    else
+                                    {
+
+                                        <span>@item.SellingPrice.ToString("N0")원</span>
+                                    }
+                                </td>
+                                <td class="text-end pe-4">
+                                    @if (item.Type != "Material")
+                                    {
+                                        <button class="btn btn-sm btn-outline-info me-1" @onclick='() => Nav.NavigateTo($"/products/{item.Id}")'>BOM</button>
+                                    }
+                                    <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditForm(item)">수정</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteItem(item)">삭제</button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Item> items = new();
+    private List<Item> filteredItems = new();
+    private Item newItem = new Item { Type = "Product" };
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private bool isFormVisible = false;
+    private string currentTab = "All";
+
+    protected override async Task OnInitializedAsync() { await LoadItems(); }
+
+    private async Task LoadItems()
+    {
+        try
+        {
+            isLoading = true;
+            var session = Supabase.Auth.CurrentSession ?? await Supabase.Auth.RetrieveSessionAsync();
+            if (session?.User == null) return;
+
+            // [박일용] 모델 속성 없이 문자열 필터 방식으로 내 품목만 가져옵니다.
+            var result = await Supabase.From<Item>()
+                .Filter("user_id", global::Supabase.Postgrest.Constants.Operator.Equals, session.User.Id)
+                .Order("created_at", global::Supabase.Postgrest.Constants.Ordering.Descending)
+                .Get();
+
+            items = result.Models;
+            ApplyFilter();
+        }
+        catch (Exception ex) { Console.WriteLine($"Load Error: {ex.Message}"); items = new(); }
+        finally { isLoading = false; StateHasChanged(); }
+    }
+
+    private async Task SaveItem()
+    {
+        if (isSaving) return;
+        isSaving = true;
+        try
+        {
+            var session = Supabase.Auth.CurrentSession ?? await Supabase.Auth.RetrieveSessionAsync();
+            if (session?.User == null) return;
+
+            // [박일용] UserId 할당 로직을 제거합니다. (DB 트리거 또는 기본값 처리에 맡깁니다)
+
+            if (newItem.Type == "Material" && newItem.PurchasePrice > 0)
+                newItem.CostPrice = newItem.PurchasePrice / (newItem.PurchaseQty * (newItem.UsageQty > 0 ? newItem.UsageQty : 1));
+
+            if (newItem.Id == 0)
+            {
+                newItem.CreatedAt = DateTime.Now;
+                await Supabase.From<Item>().Insert(newItem);
+            }
+            else await Supabase.From<Item>().Update(newItem);
+
+            await LoadItems();
+            isFormVisible = false;
+        }
+        catch (Exception ex) { await JS.InvokeVoidAsync("alert", $"저장 실패: {ex.Message}"); }
+        finally { isSaving = false; }
+    }
+
+    private void ApplyFilter()
+    {
+        var q = items.AsEnumerable();
+        if (currentTab != "All") q = q.Where(x => x.Type == currentTab);
+        filteredItems = q.ToList();
+    }
+
+    private void ChangeTab(string t) { currentTab = t; ApplyFilter(); }
+    private void ShowAddForm() { newItem = new Item { Type = currentTab == "All" ? "Product" : currentTab, PurchaseQty = 1, UsageQty = 1 }; isFormVisible = true; }
+    private void ShowEditForm(Item item) { newItem = item; isFormVisible = true; }
+    private void HideAddForm() { isFormVisible = false; }
+    private async Task DeleteItem(Item item) { if (await JS.InvokeAsync<bool>("confirm", $"'{item.Name}'을(를) 삭제하시겠습니까?")) { await Supabase.From<Item>().Delete(item); await LoadItems(); } }
+    private string GetTypeBadgeClass(string t) => t == "Product" ? "bg-success" : t == "Component" ? "bg-warning text-dark" : "bg-secondary";
+    private string GetTypeLabel(string t) => t == "Product" ? "완제품" : t == "Component" ? "반제품" : "원자재";
+}

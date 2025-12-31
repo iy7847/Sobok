@@ -1,0 +1,602 @@
+﻿@page "/orders"
+@using Supabase.Interfaces
+@using Supabase.Postgrest
+@using ProfitMate_V2.Models
+@using ProfitMate_V2.Layout
+@using Microsoft.Extensions.Configuration
+@using Newtonsoft.Json
+@inject Supabase.Client Supabase
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject IConfiguration Configuration
+
+<PageTitle>주문 관리 - 소복</PageTitle>
+
+<div class="container mt-4 pb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark m-0">📋 주문 관리</h3>
+            <p class="text-muted small m-0">실시간 주문 현황을 확인하고 내역을 관리하세요.</p>
+        </div>
+        <button class="btn btn-outline-dark rounded-pill px-3 shadow-sm" @onclick='() => Nav.NavigateTo("/order-config")'>
+            <i class="bi bi-gear-fill me-1"></i> 주문서 설정
+        </button>
+    </div>
+
+    <!-- 1. 가게 링크 공유 카드 -->
+    <div class="card shadow-sm border-warning bg-warning bg-opacity-10 mb-4 rounded-4">
+        <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div style="overflow: hidden; flex: 1;">
+                <h6 class="fw-bold text-dark mb-1">📢 내 가게 주문서 공유하기</h6>
+                @if (!string.IsNullOrEmpty(myShopLink))
+                {
+                    <div class="d-flex align-items-center mt-1 gap-2">
+                        <small class="text-primary text-truncate user-select-all bg-white px-2 py-1 rounded border" style="cursor: pointer; max-width: 300px;" @onclick="CopyLink">
+                            <i class="bi bi-link-45deg"></i> @myShopLink
+                        </small>
+                        <button class="btn btn-sm btn-light border text-muted" @onclick="CopyLink" title="복사">
+                            <i class="bi bi-files"></i>
+                        </button>
+                    </div>
+                }
+            </div>
+            <button class="btn btn-warning text-dark fw-bold text-nowrap shadow-sm" @onclick="ShareLink">
+                <i class="bi bi-chat-fill me-2"></i> 카톡 공유
+            </button>
+        </div>
+    </div>
+
+    <!-- 2. 검색 및 필터 패널 -->
+    <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-body p-3 bg-light rounded-4">
+            <div class="row g-3">
+                <div class="col-lg-5">
+                    <label class="x-small fw-bold text-muted ms-1">조회 기간</label>
+                    <div class="d-flex gap-1 align-items-center mb-2">
+                        <input type="date" class="form-control form-control-sm border-0 shadow-sm" @bind="startDate" />
+                        <span class="text-muted">~</span>
+                        <input type="date" class="form-control form-control-sm border-0 shadow-sm" @bind="endDate" />
+                    </div>
+                    <div class="btn-group btn-group-xs w-100 shadow-sm">
+                        <button class="btn btn-outline-secondary btn-xs" @onclick='() => SetRange(1)'>1개월</button>
+                        <button class="btn btn-outline-secondary btn-xs" @onclick='() => SetRange(3)'>3개월</button>
+                        <button class="btn btn-outline-secondary btn-xs" @onclick='() => SetRange(6)'>6개월</button>
+                        <button class="btn btn-outline-secondary btn-xs" @onclick='() => SetRange(0)'>오늘</button>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <label class="x-small fw-bold text-muted ms-1">고객명/연락처</label>
+                    <input type="text" class="form-control form-control-sm border-0 shadow-sm mb-2" placeholder="이름 또는 전화번호 입력" @bind="searchQuery" @onkeyup="HandleKeyUp" />
+
+                    <label class="x-small fw-bold text-muted ms-1">상태 필터</label>
+                    <select class="form-select form-select-sm border-0 shadow-sm" @bind="searchStatus" @bind:after="ApplyFilters">
+                        <option value="All">전체 상태 보기</option>
+                        <option value="신규">🔴 신규 주문</option>
+                        <option value="확인">🟡 확인 중</option>
+                        <option value="완료">🟢 처리 완료</option>
+                        <option value="취소">⚪ 주문 취소</option>
+                    </select>
+                </div>
+
+                <div class="col-lg-3 d-flex flex-column justify-content-end">
+                    <button class="btn btn-primary w-100 shadow-sm fw-bold mb-2" @onclick="LoadOrders">
+                        <i class="bi bi-search me-1"></i> 검색/새로고침
+                    </button>
+                    <div class="btn-group btn-group-sm w-100 shadow-sm">
+                        <button class="btn @(activeTab == "Active" ? "btn-dark" : "btn-outline-dark")" @onclick='() => ChangeTab("Active")'>미완료</button>
+                        <button class="btn @(activeTab == "Completed" ? "btn-dark" : "btn-outline-dark")" @onclick='() => ChangeTab("Completed")'>완료/취소</button>
+                        <button class="btn @(activeTab == "Total" ? "btn-dark" : "btn-outline-dark")" @onclick='() => ChangeTab("Total")'>전체</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 주문 목록 테이블 -->
+    <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-white text-muted x-small text-uppercase border-bottom">
+                    <tr>
+                        <th class="ps-4" style="width: 100px;">상태</th>
+                        <th style="width: 140px;">고객 정보</th>
+                        <th>주문 내용</th>
+                        <th class="text-end" style="width: 110px;">금액</th>
+                        <th class="text-end pe-4" style="width: 100px;">일시</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (isLoading)
+                    {
+                        <tr><td colspan="5" class="text-center py-5"><div class="spinner-border text-primary spinner-border-sm"></div></td></tr>
+                    }
+                    else if (filteredOrders.Count == 0)
+                    {
+                        <tr><td colspan="5" class="text-center py-5 text-muted small">해당 조건에 맞는 주문 내역이 없습니다.</td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var order in filteredOrders)
+                        {
+                            <tr @onclick="() => ToggleOrderExpand(order.Id)" style="cursor: pointer;" class="@(expandedOrderId == order.Id ? "table-light" : "")">
+                                <td class="ps-4">
+                                    <span class="badge @GetStatusColor(order.Status) p-2 shadow-sm">@order.Status</span>
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-dark">@order.CustomerName</div>
+                                    <div class="text-muted x-small">@order.CustomerPhone</div>
+                                </td>
+                                <td>
+                                    <div class="fw-medium text-primary">
+                                        @if (order.Items != null && order.Items.Any())
+                                        {
+                                            <span>@order.Items.First().ItemName @(order.Items.Count > 1 ? $"외 {order.Items.Count - 1}건" : "")</span>
+                                        }
+                                    </div>
+                                    <div class="mt-1 d-flex flex-wrap gap-1">
+                                        @{
+                                            var custom = ParseCustomData(order.CustomData);
+                                        }
+                                        @if (custom != null)
+                                        {
+                                            @foreach (var cItem in custom.Take(2))
+                                            {
+                                                <span class="badge bg-light text-dark border fw-normal x-small">@cItem.value</span>
+                                            }
+                                        }
+                                    </div>
+                                </td>
+                                <td class="text-end fw-bold text-dark">@order.TotalAmount.ToString("N0")원</td>
+                                <td class="text-end pe-4 text-muted x-small">
+                                    @GetKoreanTimeFixed(order.CreatedAt).ToString("MM.dd")<br />
+                                    @GetKoreanTimeFixed(order.CreatedAt).ToString("HH:mm")
+                                </td>
+                            </tr>
+
+                            @if (expandedOrderId == order.Id)
+                            {
+                                <tr class="bg-white">
+                                    <td colspan="5" class="p-0 border-bottom">
+                                        <div class="p-4 bg-light bg-opacity-50 shadow-inner">
+                                            <div class="row g-4">
+                                                <!-- 주문 상세 편집/조회 -->
+                                                <div class="col-md-7">
+                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                        <h6 class="fw-bold text-secondary x-small m-0"><i class="bi bi-cart4 me-2"></i>주문 상세 및 수정</h6>
+                                                        @if (!isEditMode)
+                                                        {
+                                                            <button class="btn btn-sm btn-outline-primary py-0" @onclick="EnableEditMode">정보 수정모드</button>
+                                                        }
+                                                    </div>
+
+                                                    <!-- 1. 상품 목록 블록 -->
+                                                    <div class="bg-white rounded-4 p-3 shadow-sm border mb-3">
+                                                        <div class="fw-bold text-dark x-small mb-2 pb-1 border-bottom">상품 리스트</div>
+                                                        @if (isEditMode)
+                                                        {
+                                                            <div class="row g-2 mb-3 pb-3 border-bottom">
+                                                                <div class="col-6">
+                                                                    <label class="x-small fw-bold">고객명</label>
+                                                                    <input type="text" class="form-control form-control-sm" @bind="editingName" />
+                                                                </div>
+                                                                <div class="col-6">
+                                                                    <label class="x-small fw-bold">연락처</label>
+                                                                    <input type="text" class="form-control form-control-sm" @bind="editingPhone" />
+                                                                </div>
+                                                                <div class="col-12 mt-2">
+                                                                    <label class="x-small fw-bold text-danger">총 결제 금액 (수동 수정 가능)</label>
+                                                                    <div class="input-group input-group-sm">
+                                                                        <input type="number" class="form-control fw-bold text-end" @bind="editingAmount" />
+                                                                        <span class="input-group-text">원</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        }
+
+                                                        @foreach (var pItem in order.Items)
+                                                        {
+                                                            <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2 last-child-no-border">
+                                                                <span class="small">@pItem.ItemName</span>
+                                                                @if (isEditMode)
+                                                                {
+                                                                    <div class="d-flex align-items-center">
+                                                                        <input type="number" class="form-control form-control-sm text-center" style="width: 60px;"
+                                                                               value="@pItem.Quantity" @onchange="@(e => UpdateQtyAndTotal(pItem, e.Value))" />
+                                                                        <span class="ms-1 small">개</span>
+                                                                    </div>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <span class="fw-bold small">@pItem.Quantity.ToString("N0")개 <span class="text-muted x-small">(@((pItem.Price * pItem.Quantity).ToString("N0"))원)</span></span>
+                                                                }
+                                                            </div>
+                                                        }
+                                                    </div>
+
+                                                    <!-- 2. 고객 선택 옵션 표시 영역 -->
+                                                    <div class="bg-white rounded-4 p-3 shadow-sm border">
+                                                        <div class="fw-bold text-dark x-small mb-2 pb-1 border-bottom">고객 선택 옵션 (상세 내역)</div>
+                                                        @{
+                                                            if (custom != null && custom.Any())
+                                                            {
+                                                                @foreach (var fItem in custom)
+                                                                {
+                                                                    <div class="mb-2 pb-1 border-bottom last-child-no-border">
+                                                                        <small class="text-muted d-block" style="font-size: 0.65rem;">@fItem.label</small>
+                                                                        <div class="fw-bold text-dark small">@fItem.value</div>
+                                                                    </div>
+                                                                }
+                                                            }
+                                                            else
+                                                            {
+                                                                <div class="text-muted x-small">선택된 추가 옵션이 없습니다.</div>
+                                                            }
+                                                        }
+                                                    </div>
+                                                </div>
+
+                                                <!-- 메모 및 상태 처리 -->
+                                                <div class="col-md-5">
+                                                    <h6 class="fw-bold mb-3 text-secondary x-small"><i class="bi bi-pencil-square me-2"></i>관리자 전용 메모 (비고)</h6>
+                                                    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                                                        <div class="card-body p-3">
+                                                            <textarea class="form-control border-0 bg-light mb-3 small" rows="4"
+                                                                      placeholder="사장님만 볼 수 있는 메모를 입력하세요." @bind="currentRemarks"></textarea>
+
+                                                            <div class="d-grid gap-2">
+                                                                @if (isEditMode)
+                                                                {
+                                                                    <button class="btn btn-primary fw-bold py-2 rounded-3 shadow-sm" @onclick="() => SaveOrderChanges(order)">
+                                                                        <i class="bi bi-check-lg me-1"></i> 수정 내용 저장하기
+                                                                    </button>
+                                                                    <button class="btn btn-outline-secondary btn-sm" @onclick="CancelEditMode">수정 취소</button>
+                                                                }
+                                                                else
+                                                                {
+                                                                    @if (order.Status != "완료")
+                                                                    {
+                                                                        <button class="btn btn-success fw-bold py-2 rounded-3 shadow-sm" @onclick="() => ProcessComplete(order)">
+                                                                            <i class="bi bi-check-circle-fill me-1"></i> 처리 완료 및 저장
+                                                                        </button>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <button class="btn btn-primary fw-bold py-2 rounded-3 shadow-sm" @onclick="() => SaveMemoOnly(order)">
+                                                                            <i class="bi bi-save me-1"></i> 메모 수정 저장
+                                                                        </button>
+                                                                    }
+
+                                                                    <div class="d-flex gap-2">
+                                                                        <button class="btn btn-outline-warning btn-sm flex-grow-1" @onclick='() => UpdateStatus(order, "확인")'>확인중으로</button>
+                                                                        <button class="btn btn-danger btn-sm flex-grow-1" @onclick='() => UpdateStatus(order, "취소")'>주문 취소</button>
+                                                                    </div>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Order> allOrders = new();
+    private List<Order> filteredOrders = new();
+    private bool isLoading = true;
+    private string? expandedOrderId;
+    private string currentRemarks = "";
+    private string myShopLink = "";
+    private string shopName = "소복";
+
+    // 수정 상태
+    private bool isEditMode = false;
+    private string editingName = "";
+    private string editingPhone = "";
+    private double editingAmount = 0;
+
+    // 검색/필터 상태
+    private string searchQuery = "";
+    private DateTime? startDate = DateTime.Now.AddMonths(-1).Date;
+    private DateTime? endDate = DateTime.Now.Date;
+    private string searchStatus = "All";
+    private string activeTab = "Active";
+
+    private string KakaoJsKey => Configuration["Kakao:JavaScriptKey"] ?? "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOrders();
+        await GenerateShopLink();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !string.IsNullOrEmpty(KakaoJsKey))
+        {
+            await JS.InvokeVoidAsync("initKakao", KakaoJsKey);
+        }
+    }
+
+    private async Task GenerateShopLink()
+    {
+        var session = Supabase.Auth.CurrentSession ?? await Supabase.Auth.RetrieveSessionAsync();
+        if (session?.User != null)
+        {
+            // [수정] 링크에 버전 쿼리(?v=시간)를 추가하여 캐시 문제 해결 및 항상 최신 주문서 로드
+            var version = DateTime.Now.ToString("yyyyMMddHHmm");
+            myShopLink = $"{Nav.BaseUri}shop/{session.User.Id}?v={version}";
+
+            try
+            {
+                var result = await Supabase.From<UserProfile>().Where(p => p.Id == session.User.Id).Single();
+                if (result != null) shopName = result.CompanyName ?? "소복";
+            }
+            catch { }
+        }
+    }
+
+    private void SetRange(int months)
+    {
+        endDate = DateTime.Now.Date;
+        if (months == 0) startDate = DateTime.Now.Date;
+        else startDate = DateTime.Now.AddMonths(-months).Date;
+        LoadOrders();
+    }
+
+    private async Task LoadOrders()
+    {
+        try
+        {
+            isLoading = true;
+            var session = Supabase.Auth.CurrentSession ?? await Supabase.Auth.RetrieveSessionAsync();
+            if (session?.User == null) return;
+
+            var result = await Supabase.From<Order>()
+                .Select("*, Items:OrderItems(*)")
+                .Where(o => o.ShopId == session.User.Id)
+                .Order("created_at", global::Supabase.Postgrest.Constants.Ordering.Descending)
+                .Get();
+
+            allOrders = result.Models;
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[데이터 로드 오류] {ex.Message}");
+        }
+        finally { isLoading = false; StateHasChanged(); }
+    }
+
+    private void ApplyFilters()
+    {
+        var query = allOrders.AsEnumerable();
+
+        if (searchStatus != "All")
+        {
+            query = query.Where(o => o.Status == searchStatus);
+        }
+        else
+        {
+            if (activeTab == "Active")
+                query = query.Where(o => o.Status != "완료" && o.Status != "취소");
+            else if (activeTab == "Completed")
+                query = query.Where(o => o.Status == "완료" || o.Status == "취소");
+        }
+
+        if (startDate.HasValue) query = query.Where(o => GetKoreanTimeFixed(o.CreatedAt).Date >= startDate.Value.Date);
+        if (endDate.HasValue) query = query.Where(o => GetKoreanTimeFixed(o.CreatedAt).Date <= endDate.Value.Date);
+
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            var sq = searchQuery.Trim();
+            query = query.Where(o => (o.CustomerName != null && o.CustomerName.Contains(sq, StringComparison.OrdinalIgnoreCase)) ||
+                                     (o.CustomerPhone != null && o.CustomerPhone.Contains(sq)));
+        }
+
+        filteredOrders = query.ToList();
+    }
+
+    private void ToggleOrderExpand(string orderId)
+    {
+        if (expandedOrderId == orderId) { expandedOrderId = null; isEditMode = false; }
+        else { expandedOrderId = orderId; var order = allOrders.FirstOrDefault(o => o.Id == orderId); currentRemarks = order?.Remarks ?? ""; isEditMode = false; }
+    }
+
+    private void EnableEditMode()
+    {
+        var order = allOrders.FirstOrDefault(o => o.Id == expandedOrderId);
+        if (order != null) { editingName = order.CustomerName; editingPhone = order.CustomerPhone; editingAmount = order.TotalAmount; isEditMode = true; }
+    }
+
+    private void UpdateQtyAndTotal(OrderItem item, object? val)
+    {
+        if (double.TryParse(val?.ToString(), out double qty))
+        {
+            item.Quantity = qty;
+            var order = allOrders.FirstOrDefault(o => o.Id == expandedOrderId);
+            if (order != null) editingAmount = order.Items.Sum(i => i.Price * i.Quantity);
+        }
+    }
+
+    private void CancelEditMode() => isEditMode = false;
+
+    private DateTime GetKoreanTimeFixed(DateTime dt)
+    {
+        return dt.ToUniversalTime().AddHours(9);
+    }
+
+    private DateTime EnsureUtc(DateTime dt)
+    {
+        if (dt.Kind == DateTimeKind.Utc) return dt;
+        return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+    }
+
+    private async Task SaveOrderChanges(Order order)
+    {
+        try
+        {
+            await Supabase.From<Order>().Update(new Order
+            {
+                Id = order.Id,
+                ShopId = order.ShopId,
+                CustomerName = editingName,
+                CustomerPhone = editingPhone,
+                TotalAmount = editingAmount,
+                Remarks = currentRemarks,
+                Status = order.Status,
+                RequestNote = order.RequestNote,
+                CreatedAt = EnsureUtc(order.CreatedAt),
+                CustomData = order.CustomData
+            });
+
+            foreach (var item in order.Items) await Supabase.From<OrderItem>().Update(item);
+
+            await JS.InvokeVoidAsync("alert", "수정사항이 저장되었습니다.");
+            isEditMode = false;
+            await LoadOrders();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", "저장 실패: 권한 문제 또는 DB 설정 확인이 필요합니다.");
+        }
+    }
+
+    private async Task ProcessComplete(Order order)
+    {
+        try
+        {
+            await Supabase.From<Order>().Update(new Order
+            {
+                Id = order.Id,
+                ShopId = order.ShopId,
+                CustomerName = order.CustomerName,
+                CustomerPhone = order.CustomerPhone,
+                TotalAmount = order.TotalAmount,
+                RequestNote = order.RequestNote,
+                Status = "완료",
+                Remarks = currentRemarks,
+                CreatedAt = EnsureUtc(order.CreatedAt),
+                CustomData = order.CustomData
+            });
+
+            await JS.InvokeVoidAsync("alert", "성공적으로 완료 처리되었습니다.");
+            expandedOrderId = null;
+            await LoadOrders();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", "완료 처리 실패: 권한 문제(42501)가 발생했습니다.");
+        }
+    }
+
+    private async Task SaveMemoOnly(Order order)
+    {
+        try
+        {
+            await Supabase.From<Order>().Update(new Order
+            {
+                Id = order.Id,
+                ShopId = order.ShopId,
+                CustomerName = order.CustomerName,
+                CustomerPhone = order.CustomerPhone,
+                TotalAmount = order.TotalAmount,
+                Status = order.Status,
+                Remarks = currentRemarks,
+                CreatedAt = EnsureUtc(order.CreatedAt),
+                CustomData = order.CustomData
+            });
+            await JS.InvokeVoidAsync("alert", "메모가 저장되었습니다.");
+            await LoadOrders();
+        }
+        catch { await JS.InvokeVoidAsync("alert", "저장 실패"); }
+    }
+
+    private async Task UpdateStatus(Order order, string newStatus)
+    {
+        string msg = newStatus == "취소" ? "정말 이 주문을 취소하시겠습니까?" : $"주문 상태를 [{newStatus}](으)로 변경할까요?";
+        if (await JS.InvokeAsync<bool>("confirm", msg))
+        {
+            try
+            {
+                await Supabase.From<Order>().Update(new Order
+                {
+                    Id = order.Id,
+                    ShopId = order.ShopId,
+                    CustomerName = order.CustomerName,
+                    CustomerPhone = order.CustomerPhone,
+                    TotalAmount = order.TotalAmount,
+                    RequestNote = order.RequestNote,
+                    Status = newStatus,
+                    CreatedAt = EnsureUtc(order.CreatedAt),
+                    CustomData = order.CustomData
+                });
+                expandedOrderId = null;
+                await LoadOrders();
+            }
+            catch (Exception ex) { await JS.InvokeVoidAsync("alert", "상태 변경 실패: " + ex.Message); }
+        }
+    }
+
+    private async Task ChangeTab(string tab) { activeTab = tab; ApplyFilters(); }
+    private async Task HandleKeyUp(KeyboardEventArgs e) { if (e.Key == "Enter") ApplyFilters(); }
+    private async Task CopyLink() { await JS.InvokeVoidAsync("navigator.clipboard.writeText", myShopLink); await JS.InvokeVoidAsync("alert", "링크가 복사되었습니다."); }
+
+    private async Task ShareLink()
+    {
+        if (string.IsNullOrEmpty(myShopLink))
+        {
+            await JS.InvokeVoidAsync("alert", "주문서 링크를 생성할 수 없습니다.");
+            return;
+        }
+
+        try
+        {
+            var key = Configuration["Kakao:JavaScriptKey"] ?? "3b87ed760a8e5a657b9443af111da249";
+            await JS.InvokeVoidAsync("initKakao", key);
+            await JS.InvokeVoidAsync("shareKakaoOrderLink", shopName, myShopLink);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[카톡 공유 에러 무시] {ex.Message}");
+        }
+    }
+
+    private List<CustomDataView>? ParseCustomData(object? data)
+    {
+        if (data == null) return null;
+        try { return JsonConvert.DeserializeObject<List<CustomDataView>>(data.ToString()); } catch { return null; }
+    }
+
+    private string GetStatusColor(string status) => status switch { "신규" => "bg-danger", "확인" => "bg-warning text-dark", "완료" => "bg-success", "취소" => "bg-secondary", _ => "bg-secondary" };
+    private void GoToOrderConfig() => Nav.NavigateTo("/order-config");
+    public class CustomDataView { public string label { get; set; } = ""; public string value { get; set; } = ""; }
+}
+
+<style>
+    .x-small {
+        font-size: 0.75rem;
+    }
+
+    .btn-xs {
+        padding: 2px 5px;
+        font-size: 0.7rem;
+    }
+
+    .last-child-no-border:last-child {
+        border-bottom: none !important;
+    }
+
+    .shadow-inner {
+        box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+    }
+</style>

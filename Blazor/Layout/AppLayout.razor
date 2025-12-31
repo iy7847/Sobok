@@ -1,0 +1,269 @@
+﻿@inherits LayoutComponentBase
+@inject IJSRuntime JS
+@inject Supabase.Client SupabaseClient
+@inject NavigationManager Nav
+@using ProfitMate_V2.Models
+@using Supabase.Gotrue
+@using Newtonsoft.Json
+
+<!-- [수정] 인증 확인이 끝나기 전에는 로딩 화면만 표시 (깜빡임/루프 방지) -->
+@if (!isAuthChecked)
+{
+    <div style="display:flex; justify-content:center; align-items:center; height:100vh; background-color:#f8f9fa;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else
+{
+    <!-- 전체 레이아웃 컨테이너 -->
+    <div class="pm-layout">
+
+        <!-- 1. 모바일 상단 헤더 -->
+        <header class="pm-mobile-header">
+            <button class="pm-mobile-toggle" @onclick="ToggleSidebar">
+                <i class="bi bi-list fs-2 text-white"></i>
+            </button>
+            <span class="pm-mobile-brand">소복</span>
+        </header>
+
+        <!-- 2. 사이드바 -->
+        <aside class="pm-sidebar @(isOpen ? "open" : "closed")">
+
+            <!-- 사이드바 헤더 -->
+            <div class="pm-sidebar-header">
+                <div class="pm-logo-area">
+                    <img src="images/logo.png" alt="소복" class="pm-logo-img me-2" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" />
+                    <i class="bi bi-currency-dollar text-warning fs-4 me-2" style="display:none;"></i>
+                    <span class="fw-bold fs-5 text-white">소복</span>
+                </div>
+                <button class="pm-desktop-toggle" @onclick="ToggleSidebar">
+                    <i class="bi @(isOpen ? "bi-chevron-left" : "bi-list")"></i>
+                </button>
+            </div>
+
+            <!-- 메뉴 목록 -->
+            <nav class="pm-nav-container">
+                <div class="pm-nav-item" @onclick="CloseSidebarOnMobile">
+                    <NavLink class="pm-nav-link" href="" Match="NavLinkMatch.All">
+                        <i class="bi bi-speedometer2"></i>
+                        <span class="pm-link-text">대시보드</span>
+                    </NavLink>
+                </div>
+                <div class="pm-nav-item" @onclick="CloseSidebarOnMobile">
+                    <NavLink class="pm-nav-link" href="products">
+                        <i class="bi bi-box-seam"></i>
+                        <span class="pm-link-text">품목 관리 (BOM)</span>
+                    </NavLink>
+                </div>
+                <div class="pm-nav-item" @onclick="CloseSidebarOnMobile">
+                    <NavLink class="pm-nav-link" href="orders">
+                        <i class="bi bi-receipt"></i>
+                        <span class="pm-link-text">주문 관리</span>
+                    </NavLink>
+                </div>
+                <div class="pm-nav-item" @onclick="CloseSidebarOnMobile">
+                    <NavLink class="pm-nav-link" href="fixedcosts">
+                        <i class="bi bi-gear-wide-connected"></i>
+                        <span class="pm-link-text">고정비 설정</span>
+                    </NavLink>
+                </div>
+                <div class="pm-nav-item" @onclick="CloseSidebarOnMobile">
+                    <NavLink class="pm-nav-link" href="expenses">
+                        <i class="bi bi-wallet2"></i>
+                        <span class="pm-link-text">지출 관리</span>
+                    </NavLink>
+                </div>
+                <div class="pm-nav-item" @onclick="CloseSidebarOnMobile">
+                    <NavLink class="pm-nav-link" href="profitanalysis">
+                        <i class="bi bi-graph-up"></i>
+                        <span class="pm-link-text">마진 분석</span>
+                    </NavLink>
+                </div>
+            </nav>
+
+            <!-- 하단 사용자 정보 및 구독 상태 -->
+            <div class="pm-sidebar-footer">
+                <div class="pm-user-info">
+                    <i class="bi bi-person-circle fs-4 text-white-50"></i>
+                    <div class="pm-user-text">
+                        <div class="fw-bold text-truncate">@userName</div>
+
+                        @if (daysLeft >= 0)
+                        {
+                            <small class="text-success fw-bold d-block" style="font-size: 0.7rem;">
+                                <i class="bi bi-clock-history me-1"></i>D-@daysLeft
+                            </small>
+                        }
+                        else if (daysLeft < -9000)
+                        {
+                            <small class="text-muted d-block" style="font-size: 0.7rem;">무료 체험 중</small>
+                        }
+                        else
+                        {
+                            <small class="text-danger fw-bold d-block" style="font-size: 0.7rem;">
+                                기간 만료
+                            </small>
+                        }
+                    </div>
+                    <button class="btn btn-link text-white-50 btn-sm p-0 ms-auto" @onclick="SignOut" title="로그아웃">
+                        <i class="bi bi-box-arrow-right fs-5"></i>
+                    </button>
+                </div>
+
+                <div class="mt-3 w-100 px-3 @(isOpen ? "d-block" : "d-none")">
+                    <button class="btn btn-outline-light btn-sm w-100 py-2" @onclick="InstallPwa">
+                        <i class="bi bi-download me-2"></i> 앱 설치하기
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 모바일 오버레이 -->
+        <div class="pm-overlay @(isOpen ? "active" : "")" @onclick="CloseSidebar"></div>
+
+        <!-- 메인 콘텐츠 영역 -->
+        <main class="pm-main @(isOpen ? "shifted" : "full")">
+            <div class="pm-content-body">
+                @Body
+            </div>
+        </main>
+
+    </div>
+}
+
+@code {
+    private bool isOpen = false;
+    private bool isDesktopChecked = false;
+
+    // [수정] 인증 체크 완료 여부 플래그
+    private bool isAuthChecked = false;
+
+    private string userName = "사용자";
+    private int daysLeft = -9999;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // 1. 메모리 세션 확인
+            var session = SupabaseClient.Auth.CurrentSession;
+
+            // 2. 없으면 로컬 스토리지에서 복구 시도
+            if (session == null)
+            {
+                var storedJson = await JS.InvokeAsync<string>("localStorage.getItem", "sb_session");
+                if (!string.IsNullOrEmpty(storedJson))
+                {
+                    try
+                    {
+                        var storedSession = JsonConvert.DeserializeObject<Session>(storedJson);
+                        if (storedSession != null && !string.IsNullOrEmpty(storedSession.AccessToken))
+                        {
+                            // 저장된 토큰으로 세션 복구
+                            await SupabaseClient.Auth.SetSession(storedSession.AccessToken, storedSession.RefreshToken);
+                            session = SupabaseClient.Auth.CurrentSession;
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            // 3. 최종 확인: 여전히 세션이 없으면 로그인 페이지로 이동
+            if (session == null)
+            {
+                Nav.NavigateTo("/login");
+                return;
+            }
+
+            // 4. 사용자 정보 로드
+            var user = session.User;
+            if (user != null)
+            {
+                userName = !string.IsNullOrEmpty(user.Email) ? user.Email.Split('@')[0] : "사용자";
+
+                try
+                {
+                    var result = await SupabaseClient.From<UserProfile>()
+                        .Where(u => u.Id == user.Id)
+                        .Single();
+
+                    if (result != null && result.SubscriptionEndDate.HasValue)
+                    {
+                        var endDate = result.SubscriptionEndDate.Value;
+                        var today = DateTime.Now.Date;
+                        TimeSpan diff = endDate - today;
+                        daysLeft = (int)Math.Ceiling(diff.TotalDays);
+                    }
+                }
+                catch { }
+            }
+
+            // [수정] 모든 확인이 끝난 후 화면 표시 (깜빡임 방지)
+            isAuthChecked = true;
+        }
+        catch
+        {
+            Nav.NavigateTo("/login");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // 인증 체크가 완료되고 렌더링된 후에만 사이즈 체크
+        if (isAuthChecked && !isDesktopChecked)
+        {
+            isDesktopChecked = true;
+            try
+            {
+                var isDesktop = await JS.InvokeAsync<bool>("eval", "(window.innerWidth > 768)");
+                if (isDesktop)
+                {
+                    isOpen = true;
+                    StateHasChanged();
+                }
+            }
+            catch { }
+        }
+    }
+
+    private async Task SignOut()
+    {
+        await SupabaseClient.Auth.SignOut();
+        await JS.InvokeVoidAsync("localStorage.removeItem", "sb_session");
+        Nav.NavigateTo("/login");
+    }
+
+    private void ToggleSidebar()
+    {
+        isOpen = !isOpen;
+    }
+
+    private void CloseSidebar()
+    {
+        isOpen = false;
+    }
+
+    private void CloseSidebarOnMobile()
+    {
+        isOpen = false;
+    }
+
+    private async Task InstallPwa()
+    {
+        var result = await JS.InvokeAsync<string>("triggerPwaInstall");
+        if (result == "unavailable")
+        {
+            bool isIos = await JS.InvokeAsync<bool>("eval", "(/iPad|iPhone|iPod/.test(navigator.userAgent))");
+            if (isIos)
+            {
+                await JS.InvokeVoidAsync("alert", "아이폰: 브라우저 하단 [공유] 버튼 -> [홈 화면에 추가]를 선택하세요.");
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "이미 설치되었거나 브라우저 메뉴에서 [앱 설치]를 선택해야 합니다.");
+            }
+        }
+    }
+}

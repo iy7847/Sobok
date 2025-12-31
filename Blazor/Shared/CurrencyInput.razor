@@ -1,0 +1,100 @@
+﻿@using System.Globalization
+
+<div class="@ContainerClass">
+    @if (!string.IsNullOrEmpty(Label))
+    {
+        <label class="form-label fw-bold">@Label</label>
+    }
+    <div class="input-group">
+        <input type="text"
+               class="form-control text-end @InputClass"
+               value="@DisplayValue"
+               @onchange="OnValueChanged"
+               @onfocus="OnFocus"
+               @onblur="OnBlur"
+               placeholder="@Placeholder"
+               disabled="@Disabled" />
+        @if (!string.IsNullOrEmpty(Unit))
+        {
+            <span class="input-group-text">@Unit</span>
+        }
+    </div>
+    @if (ShowHelpText && !string.IsNullOrEmpty(HelpText))
+    {
+        <div class="form-text text-end x-small text-muted">
+            @HelpText
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public double Value { get; set; }
+    [Parameter] public EventCallback<double> ValueChanged { get; set; }
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public string Placeholder { get; set; } = "0";
+    [Parameter] public string Unit { get; set; } = "";
+    [Parameter] public bool Disabled { get; set; } = false;
+    [Parameter] public string ContainerClass { get; set; } = "";
+    [Parameter] public string InputClass { get; set; } = "";
+    [Parameter] public bool ShowHelpText { get; set; } = false;
+    [Parameter] public string HelpText { get; set; } = "";
+
+    // N0: 소수점 없는 천단위, N2: 소수점 2자리 등 포맷 지정 가능
+    [Parameter] public string Format { get; set; } = "N0";
+
+    private string DisplayValue { get; set; } = "";
+    private bool isFocused = false;
+
+    protected override void OnParametersSet()
+    {
+        if (!isFocused)
+        {
+            UpdateDisplayValue();
+        }
+    }
+
+    private void UpdateDisplayValue()
+    {
+        if (Value == 0)
+        {
+            DisplayValue = "";
+        }
+        else
+        {
+            DisplayValue = Value.ToString(Format);
+        }
+    }
+
+    private void OnFocus()
+    {
+        isFocused = true;
+        // 입력 중에는 콤마 제거하고 원본 숫자 표시 (0이면 빈칸)
+        DisplayValue = Value == 0 ? "" : Value.ToString();
+    }
+
+    private async Task OnBlur()
+    {
+        isFocused = false;
+        UpdateDisplayValue();
+    }
+
+    private async Task OnValueChanged(ChangeEventArgs e)
+    {
+        var rawValue = e.Value?.ToString()?.Replace(",", "").Trim();
+        if (double.TryParse(rawValue, out double result))
+        {
+            Value = result;
+            await ValueChanged.InvokeAsync(Value);
+        }
+        else
+        {
+            // 숫자가 아닌 값이 들어오면 0으로 초기화하거나 기존 값 유지
+            if (string.IsNullOrEmpty(rawValue))
+            {
+                Value = 0;
+                await ValueChanged.InvokeAsync(Value);
+            }
+            UpdateDisplayValue(); // 잘못된 입력 시 다시 포맷팅된 값 보여줌
+        }
+    }
+}
