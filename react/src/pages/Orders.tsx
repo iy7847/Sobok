@@ -19,7 +19,8 @@ import {
     Edit,
     Save,
     ChevronRight,
-    RefreshCw
+    RefreshCw,
+    Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Order, OrderItem } from '../types';
@@ -32,7 +33,7 @@ declare global {
 
 const OrdersPage: React.FC = () => {
     const { user, profile } = useAuth();
-    const { orders, loading, fetchOrders, updateOrderStatus, updateOrderDetails } = useOrders();
+    const { orders, loading, fetchOrders, updateOrderStatus, updateOrderDetails, deleteOrder } = useOrders();
 
     const [activeTab, setActiveTab] = useState<'Active' | 'Completed' | 'All'>('Active');
     const [searchQuery, setSearchQuery] = useState('');
@@ -72,7 +73,7 @@ const OrdersPage: React.FC = () => {
             objectType: 'feed',
             content: {
                 title: profile?.company_name || '소복 주문서',
-                description: '똑똑한 원가 관리와 간편한 주문 접수, 소복에서 시작하세요.',
+                description: '간편하게 주문하고 소복하게 받아 가세요~~',
                 imageUrl: 'https://ypyogighzmdgzxpwlmof.supabase.co/storage/v1/object/public/assets/logo_sq.png', // Placeholder
                 link: {
                     mobileWebUrl: shopLink,
@@ -91,9 +92,17 @@ const OrdersPage: React.FC = () => {
         });
     };
 
+    const getStatusLabel = (status: string) => {
+        const s = status.toLowerCase();
+        if (s === 'pending') return '신규';
+        return status;
+    };
+
     const getStatusIcon = (status: string) => {
+        const s = status.toLowerCase();
+        if (s === 'pending' || status === '신규') return <AlertCircle className="text-red-400" size={16} />;
+
         switch (status) {
-            case '신규': return <AlertCircle className="text-red-400" size={16} />;
             case '확인': return <Clock className="text-amber-400" size={16} />;
             case '완료': return <CheckCircle2 className="text-emerald-400" size={16} />;
             case '취소': return <XCircle className="text-gray-400" size={16} />;
@@ -102,8 +111,10 @@ const OrdersPage: React.FC = () => {
     };
 
     const getStatusColor = (status: string) => {
+        const s = status.toLowerCase();
+        if (s === 'pending' || status === '신규') return 'bg-red-400/10 text-red-400 border-red-400/20';
+
         switch (status) {
-            case '신규': return 'bg-red-400/10 text-red-400 border-red-400/20';
             case '확인': return 'bg-amber-400/10 text-amber-400 border-amber-400/20';
             case '완료': return 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20';
             case '취소': return 'bg-white/5 text-gray-400 border-white/10';
@@ -111,13 +122,40 @@ const OrdersPage: React.FC = () => {
         }
     };
 
-    const parseCustomData = (data: any) => {
-        if (!data) return [];
+    const formConfigMap = React.useMemo(() => {
+        if (!profile?.order_form_config) return {};
         try {
-            return typeof data === 'string' ? JSON.parse(data) : data;
+            const config = JSON.parse(profile.order_form_config);
+            return config.reduce((acc: any, el: any) => {
+                acc[el.id] = el.label;
+                return acc;
+            }, {});
         } catch {
-            return [];
+            return {};
         }
+    }, [profile]);
+
+    const getDisplayFields = (order: Order) => {
+        const data = order.custom_data;
+        if (!data) return [];
+
+        let parsed: any;
+        if (typeof data === 'string') {
+            try { parsed = JSON.parse(data); } catch { return []; }
+        } else {
+            parsed = data;
+        }
+
+        if (Array.isArray(parsed)) return parsed;
+
+        if (parsed && typeof parsed === 'object' && parsed.answers) {
+            return Object.entries(parsed.answers).map(([key, value]) => ({
+                label: formConfigMap[key] || '추가 정보',
+                value: String(value)
+            }));
+        }
+
+        return [];
     };
 
     const filteredOrders = orders.filter(order => {
@@ -236,7 +274,8 @@ const OrdersPage: React.FC = () => {
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
                             <input
                                 type="text"
-                                className="input-field pl-12 h-11"
+                                className="input-field h-11"
+                                style={{ paddingLeft: '3.5rem' }}
                                 placeholder="이름 또는 전화번호..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -249,11 +288,11 @@ const OrdersPage: React.FC = () => {
                             <RefreshCw size={14} /> 상태 필터
                         </label>
                         <select className="input-field h-11" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                            <option value="All">전체 상태 보기</option>
-                            <option value="신규">🔴 신규 주문</option>
-                            <option value="확인">🟡 확인 중</option>
-                            <option value="완료">🟢 처리 완료</option>
-                            <option value="취소">⚪ 주문 취소</option>
+                            <option value="All" className="text-black">전체 상태 보기</option>
+                            <option value="신규" className="text-black">🔴 신규 주문</option>
+                            <option value="확인" className="text-black">🟡 확인 중</option>
+                            <option value="완료" className="text-black">🟢 처리 완료</option>
+                            <option value="취소" className="text-black">⚪ 주문 취소</option>
                         </select>
                     </div>
                 </div>
@@ -306,7 +345,7 @@ const OrdersPage: React.FC = () => {
                                             <td className="px-6 py-5">
                                                 <span className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-2 w-fit ${getStatusColor(order.status)}`}>
                                                     {getStatusIcon(order.status)}
-                                                    {order.status}
+                                                    {getStatusLabel(order.status)}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-5">
@@ -315,10 +354,13 @@ const OrdersPage: React.FC = () => {
                                             </td>
                                             <td className="px-6 py-5">
                                                 <div className="text-sm font-medium text-white/90">
-                                                    {order.Items?.[0]?.item_name} {order.Items && order.Items.length > 1 ? `외 ${order.Items.length - 1}건` : ''}
+                                                    {order.Items && order.Items.length > 0
+                                                        ? `${order.Items[0].item_name} ${order.Items.length > 1 ? `외 ${order.Items.length - 1}건` : ''}`
+                                                        : (order.custom_data?.selected_product?.name || '상품 정보 없음')
+                                                    }
                                                 </div>
                                                 <div className="flex gap-1 mt-1">
-                                                    {parseCustomData(order.custom_data).slice(0, 2).map((c: any, i: number) => (
+                                                    {getDisplayFields(order).slice(0, 2).map((c: any, i: number) => (
                                                         <span key={i} className="text-[10px] bg-white/5 text-text-muted px-2 py-0.5 rounded border border-white/5">{c.value}</span>
                                                     ))}
                                                 </div>
@@ -370,30 +412,49 @@ const OrdersPage: React.FC = () => {
                                                                             </div>
                                                                         )}
 
-                                                                        {editingItems.map((pItem) => (
-                                                                            <div key={pItem.id} className="flex justify-between items-center pt-4 first:pt-0">
-                                                                                <div>
-                                                                                    <div className="font-bold">{pItem.item_name}</div>
-                                                                                    <div className="text-xs text-text-muted">{pItem.price.toLocaleString()}원</div>
+                                                                        {editingItems.length > 0 ? (
+                                                                            editingItems.map((pItem) => (
+                                                                                <div key={pItem.id} className="flex justify-between items-center pt-4 first:pt-0">
+                                                                                    <div>
+                                                                                        <div className="font-bold">{pItem.item_name}</div>
+                                                                                        <div className="text-xs text-text-muted">{pItem.price.toLocaleString()}원</div>
+                                                                                    </div>
+                                                                                    <div className="flex items-center gap-3">
+                                                                                        {isEditMode ? (
+                                                                                            <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1 border border-white/10">
+                                                                                                <input
+                                                                                                    type="number"
+                                                                                                    className="w-12 bg-transparent text-center font-bold text-sm outline-none"
+                                                                                                    value={pItem.quantity}
+                                                                                                    onChange={(e) => handleUpdateQty(pItem.id, Number(e.target.value))}
+                                                                                                />
+                                                                                                <span className="text-xs text-text-muted pr-2">개</span>
+                                                                                            </div>
+                                                                                        ) : (
+                                                                                            <div className="font-bold underline underline-offset-4 decoration-primary">{pItem.quantity}개</div>
+                                                                                        )}
+                                                                                        <div className="text-sm font-mono text-right w-24">{(pItem.price * pItem.quantity).toLocaleString()}원</div>
+                                                                                    </div>
                                                                                 </div>
-                                                                                <div className="flex items-center gap-3">
-                                                                                    {isEditMode ? (
-                                                                                        <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1 border border-white/10">
-                                                                                            <input
-                                                                                                type="number"
-                                                                                                className="w-12 bg-transparent text-center font-bold text-sm outline-none"
-                                                                                                value={pItem.quantity}
-                                                                                                onChange={(e) => handleUpdateQty(pItem.id, Number(e.target.value))}
-                                                                                            />
-                                                                                            <span className="text-xs text-text-muted pr-2">개</span>
+                                                                            ))
+                                                                        ) : (
+                                                                            editingOrder?.custom_data?.selected_product && (
+                                                                                <div className="flex justify-between items-center pt-4 first:pt-0">
+                                                                                    <div>
+                                                                                        <div className="font-bold">{editingOrder.custom_data.selected_product.name}</div>
+                                                                                        <div className="text-xs text-text-muted">{editingOrder.custom_data.selected_product.selling_price.toLocaleString()}원</div>
+                                                                                    </div>
+                                                                                    <div className="flex items-center gap-3">
+                                                                                        <div className="font-bold text-sm text-primary border border-primary/30 px-2 py-1 rounded bg-primary/5">
+                                                                                            간편 주문 상품
                                                                                         </div>
-                                                                                    ) : (
-                                                                                        <div className="font-bold underline underline-offset-4 decoration-primary">{pItem.quantity}개</div>
-                                                                                    )}
-                                                                                    <div className="text-sm font-mono text-right w-24">{(pItem.price * pItem.quantity).toLocaleString()}원</div>
+                                                                                        <div className="text-sm font-mono text-right w-24">
+                                                                                            {editingOrder.total_amount.toLocaleString()}원
+                                                                                        </div>
+                                                                                    </div>
                                                                                 </div>
-                                                                            </div>
-                                                                        ))}
+                                                                            )
+                                                                        )}
 
                                                                         <div className="flex justify-between items-center pt-4 border-t border-white/10">
                                                                             <span className="font-bold text-primary">합계 금액</span>
@@ -416,7 +477,7 @@ const OrdersPage: React.FC = () => {
                                                                     <div className="space-y-4">
                                                                         <h3 className="font-bold flex items-center gap-2 text-text-muted"><ChevronRight size={18} /> 고객 선택 정보</h3>
                                                                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                                                            {parseCustomData(order.custom_data).map((f: any, i: number) => (
+                                                                            {getDisplayFields(order).map((f: any, i: number) => (
                                                                                 <div key={i} className="glass p-3 space-y-1">
                                                                                     <div className="text-[10px] font-bold text-text-muted uppercase">{f.label}</div>
                                                                                     <div className="text-sm font-bold">{f.value}</div>
@@ -463,6 +524,20 @@ const OrdersPage: React.FC = () => {
                                                                                     <button onClick={() => handleStatusChange(order, '확인')} className="btn py-4 bg-white/5 border border-white/5 text-xs">확인 중으로</button>
                                                                                     <button onClick={() => handleStatusChange(order, '취소')} className="btn py-4 bg-red-400/10 text-red-400 border border-red-400/20 text-xs hover:bg-red-400 hover:text-white transition-all">주문 취소</button>
                                                                                 </div>
+                                                                                {(['신규', 'Pending', 'pending'].includes(order.status)) && (
+                                                                                    <button
+                                                                                        onClick={async (e) => {
+                                                                                            e.stopPropagation();
+                                                                                            if (confirm('정말로 이 주문을 완전히 삭제하시겠습니까?\n삭제된 주문은 복구할 수 없습니다.')) {
+                                                                                                await deleteOrder(order.id);
+                                                                                                setExpandedOrderId(null);
+                                                                                            }
+                                                                                        }}
+                                                                                        className="btn w-full py-3 bg-red-500/5 text-red-500/50 hover:bg-red-500 hover:text-white border border-red-500/10 text-xs flex items-center justify-center gap-2 mt-2"
+                                                                                    >
+                                                                                        <Trash2 size={14} /> 주문 영구 삭제
+                                                                                    </button>
+                                                                                )}
                                                                                 {order.status === '완료' && (
                                                                                     <button onClick={saveChanges} className="btn w-full py-4 bg-primary/10 text-primary border border-primary/20"><Save size={18} /> 메모만 수정 저장</button>
                                                                                 )}

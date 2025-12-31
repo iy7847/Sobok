@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 import type { Item } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,31 +8,76 @@ export const useItems = () => {
     const [items, setItems] = useState<Item[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, []);
 
     const fetchItems = useCallback(async () => {
         if (!user) return;
+
+        // Cancel previous request
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+        const signal = controller.signal;
+
         setLoading(true);
+        setError(null);
+
+
+
         try {
+            console.log('Fetching items for user:', user.id);
+            // Soft abort: Don't pass signal to Supabase to avoid connection closing issues with rapid aborts.
+            // We just ignore the result if signal is aborted.
             const { data, error } = await supabase
                 .from('Items')
                 .select('*')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
-            setItems(data || []);
+            if (signal.aborted) return;
+
+            if (error) {
+                console.error('Supabase fetch error:', error);
+                throw error;
+            } else {
+                console.log('Fetched items:', data?.length);
+                setItems(data || []);
+            }
         } catch (err: any) {
-            setError(err.message);
+            if (signal.aborted) {
+                console.log('UseItems Fetch ignored (aborted)');
+            } else {
+                console.error('Fetch items exception:', err);
+                setError(err.message);
+            }
         } finally {
-            setLoading(false);
+
+            if (!signal.aborted) {
+                setLoading(false);
+                // We don't nullify the ref here strictly, because a new request might have replaced it.
+            }
         }
-    }, [user]);
+    }, [user?.id]);
 
     const saveItem = async (item: Partial<Item>) => {
         if (!user) return;
         try {
             if (item.type === 'Material' && item.purchase_price && item.purchase_qty) {
-                item.cost_price = item.purchase_price / (item.purchase_qty * (item.usage_qty || 1));
+                // usage_qty is percentage (e.g., 100 means 100%)
+                const yieldRatio = (item.usage_qty || 100) / 100;
+                item.cost_price = item.purchase_price / (item.purchase_qty * yieldRatio);
             }
 
             const itemData = { ...item, user_id: user.id };
@@ -64,5 +109,24 @@ export const useItems = () => {
         }
     };
 
-    return { items, loading, error, fetchItems, saveItem, deleteItem };
+    const fetchBOMs = useCallback(async () => {
+        if (!user) return [];
+        try {
+            const { data, error } = await supabase
+                .from('BOMs')
+                .select(`
+                    *,
+                    parent_item:parent_item_id!inner(user_id)
+                `)
+                .eq('parent_item.user_id', user.id);
+
+            if (error) throw error;
+            return data as any[]; // strict typing might fail on join, casting for now or update BOM type
+        } catch (err: any) {
+            console.error('Fetch BOMs error:', err);
+            return [];
+        }
+    }, [user?.id]);
+
+    return { items, loading, error, fetchItems, saveItem, deleteItem, fetchBOMs };
 };

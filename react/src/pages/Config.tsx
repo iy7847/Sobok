@@ -133,7 +133,7 @@ const ConfigPage: React.FC = () => {
                         <AnimatePresence initial={false}>
                             {elements.map((el, index) => (
                                 <motion.div
-                                    key={el.id}
+                                    key={el.id || `el-${index}`}
                                     layout
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}

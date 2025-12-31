@@ -10,14 +10,15 @@ import {
     Info,
     DollarSign,
     PieChart as PieChartIcon,
-    Minus
+    Minus,
+    X,
+    HelpCircle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
     PieChart,
     Pie,
     Cell,
-    ResponsiveContainer,
     Tooltip,
     Legend
 } from 'recharts';
@@ -28,6 +29,7 @@ const ProfitPage: React.FC = () => {
     const [isForecastMode, setIsForecastMode] = useState(true);
     const [allocationMethod, setAllocationMethod] = useState<'Quantity' | 'Revenue'>('Quantity');
     const [additionalCost, setAdditionalCost] = useState(0);
+    const [showGuide, setShowGuide] = useState(false);
 
     const [rawData, setRawData] = useState<any>(null);
 
@@ -41,11 +43,12 @@ const ProfitPage: React.FC = () => {
         loadData();
     }, [loadData]);
 
+    const { products = [], totalOperatingExpenses = 0, totalInventoryLoss = 0, salesMap = {} } = rawData || {};
+
     const analysis = useMemo(() => {
         if (!rawData) return [];
 
-        const { products, totalExpenses, salesMap } = rawData;
-        const totalOperatingCost = totalExpenses + additionalCost;
+        const totalOperatingCost = totalOperatingExpenses + additionalCost;
 
         // Initial mapping
         let result: ProductAnalysis[] = products.map((p: any) => {
@@ -92,20 +95,25 @@ const ProfitPage: React.FC = () => {
     }, [rawData, allocationMethod, additionalCost, isForecastMode]);
 
     const totals = useMemo(() => {
+        if (!rawData) return { revenue: 0, variable: 0, fixed: 0, profit: 0, margin: 0, inventoryLoss: 0 };
         const revenue = analysis.reduce((sum, p) => sum + p.total_revenue, 0);
         const variable = analysis.reduce((sum, p) => sum + p.total_variable_cost, 0);
         const fixed = analysis.reduce((sum, p) => sum + p.allocated_fixed_cost, 0);
-        const profit = revenue - (variable + fixed);
+        const profit = revenue - (variable + fixed + totalInventoryLoss);
         const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
 
-        return { revenue, variable, fixed, profit, margin };
-    }, [analysis]);
+        return { revenue, variable, fixed, profit, margin, inventoryLoss: totalInventoryLoss };
+    }, [analysis, rawData, totalInventoryLoss]);
 
     const chartData = [
         { name: '재료비', value: totals.variable, color: '#3B82F6' },
         { name: '운영비', value: totals.fixed, color: '#94A3B8' },
         { name: '순수익', value: Math.max(0, totals.profit), color: '#10B981' },
     ];
+
+    if (totals.inventoryLoss > 0) {
+        chartData.push({ name: '재고 손실', value: totals.inventoryLoss, color: '#F59E0B' }); // Amber/Orange
+    }
 
     if (totals.profit < 0) {
         chartData.push({ name: '손실', value: Math.abs(totals.profit), color: '#EF4444' });
@@ -115,10 +123,15 @@ const ProfitPage: React.FC = () => {
         <div className="max-w-6xl mx-auto space-y-8 pb-20">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
-                    <h1 className="text-4xl font-black mb-2 flex items-center gap-3 text-white">
-                        <TrendingUp className="text-primary" size={40} />
-                        마진 분석 리포트
-                    </h1>
+                    <div className="flex items-center gap-3 mb-2">
+                        <h1 className="text-4xl font-black text-white flex items-center gap-3">
+                            <TrendingUp className="text-primary" size={40} />
+                            마진 분석 리포트
+                        </h1>
+                        <button onClick={() => setShowGuide(true)} className="text-text-muted hover:text-white transition-colors" title="계산 방법 보기">
+                            <HelpCircle size={24} />
+                        </button>
+                    </div>
                     <p className="text-text-muted font-medium">실제 판매 및 지출 데이터를 기반으로 비즈니스 수익성을 진단합니다.</p>
                 </div>
 
@@ -216,22 +229,38 @@ const ProfitPage: React.FC = () => {
                     <div className="glass p-6 space-y-4">
                         <div className="flex justify-between items-start">
                             <div>
-                                <p className="text-xs font-bold text-text-muted mb-1">총 지출 (재료+운영)</p>
-                                <h2 className="text-3xl font-black text-white">{(totals.variable + totals.fixed).toLocaleString()}원</h2>
+                                <p className="text-xs font-bold text-text-muted mb-1">총 지출 (재료+운영+손실)</p>
+                                <h2 className="text-3xl font-black text-white">{(totals.variable + totals.fixed + totals.inventoryLoss).toLocaleString()}원</h2>
                             </div>
                             <div className="p-3 bg-white/5 rounded-2xl text-text-muted">
                                 <TrendingUp size={24} className="rotate-180" />
                             </div>
                         </div>
-                        <div className="space-y-2 pt-4 border-t border-white/5">
+                        <div className="flex gap-4 pt-4 border-t border-white/5 overflow-x-auto pb-1">
+                            <div className="shrink-0">
+                                <span className="text-[10px] text-text-muted block uppercase font-bold">재료비</span>
+                                <span className="text-xs font-bold text-blue-400">{totals.variable.toLocaleString()}원</span>
+                            </div>
+                            <div className="w-px h-6 bg-white/10 shrink-0"></div>
+                            <div className="shrink-0">
+                                <span className="text-[10px] text-text-muted block uppercase font-bold">운영비</span>
+                                <span className="text-xs font-bold text-slate-400">{totals.fixed.toLocaleString()}원</span>
+                            </div>
+                            <div className="w-px h-6 bg-white/10 shrink-0"></div>
+                            <div className="shrink-0">
+                                <span className="text-[10px] text-text-muted block uppercase font-bold">재고손실</span>
+                                <span className="text-xs font-bold text-amber-500">{totals.inventoryLoss.toLocaleString()}원</span>
+                            </div>
+                        </div>
+                        <div className="space-y-2 mt-4">
                             <div className="flex justify-between text-[10px] font-bold text-text-muted uppercase">
                                 <span>비용 효율성</span>
-                                <span>{totals.revenue > 0 ? ((totals.variable + totals.fixed) / totals.revenue * 100).toFixed(1) : 0}%</span>
+                                <span>{totals.revenue > 0 ? ((totals.variable + totals.fixed + totals.inventoryLoss) / totals.revenue * 100).toFixed(1) : 0}%</span>
                             </div>
                             <div className="h-2 bg-white/5 rounded-full overflow-hidden">
                                 <motion.div
                                     initial={{ width: 0 }}
-                                    animate={{ width: `${Math.min(100, totals.revenue > 0 ? ((totals.variable + totals.fixed) / totals.revenue * 100) : 0)}%` }}
+                                    animate={{ width: `${Math.min(100, totals.revenue > 0 ? ((totals.variable + totals.fixed + totals.inventoryLoss) / totals.revenue * 100) : 0)}%` }}
                                     className="h-full bg-amber-400"
                                 />
                             </div>
@@ -254,29 +283,27 @@ const ProfitPage: React.FC = () => {
 
                 <div className="lg:col-span-4 glass p-6">
                     <h3 className="font-bold flex items-center gap-2 mb-6"><PieChartIcon className="text-primary" size={18} /> 순수익 구조</h3>
-                    <div className="h-[250px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={chartData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                >
-                                    {chartData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                    ))}
-                                </Pie>
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: '#1E293B', border: 'none', borderRadius: '12px', color: '#fff' }}
-                                    itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                                />
-                                <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontSize: '12px', fontWeight: 'bold' }} />
-                            </PieChart>
-                        </ResponsiveContainer>
+                    <div className="h-[250px] flex justify-center items-center">
+                        <PieChart width={320} height={250}>
+                            <Pie
+                                data={chartData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={60}
+                                outerRadius={80}
+                                paddingAngle={5}
+                                dataKey="value"
+                            >
+                                {chartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                            </Pie>
+                            <Tooltip
+                                contentStyle={{ backgroundColor: '#1E293B', border: 'none', borderRadius: '12px', color: '#fff' }}
+                                itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                            />
+                            <Legend iconType="circle" wrapperStyle={{ paddingTop: '10px', fontSize: '12px', fontWeight: 'bold' }} />
+                        </PieChart>
                     </div>
                 </div>
             </div>
@@ -342,6 +369,72 @@ const ProfitPage: React.FC = () => {
                     </table>
                 </div>
             </div>
+
+            {showGuide && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setShowGuide(false)}>
+                    <div className="bg-[#1E1E1E] border border-white/10 rounded-3xl max-w-2xl w-full p-8 space-y-8 shadow-2xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <h3 className="text-2xl font-black flex items-center gap-2">
+                                    <Info className="text-primary" />
+                                    수익 분석 계산 가이드
+                                </h3>
+                                <p className="text-text-muted mt-1">소복이 순수익을 계산하는 방법을 안내해 드려요.</p>
+                            </div>
+                            <button onClick={() => setShowGuide(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all"><X /></button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-4">
+                                <h4 className="font-bold text-lg text-emerald-400 border-b border-emerald-500/30 pb-2">기본 공식</h4>
+                                <div className="space-y-3 text-sm">
+                                    <div className="glass p-3">
+                                        <div className="font-bold text-white mb-1">총 매출 (Revenue)</div>
+                                        <div className="text-text-muted fa-xs">판매가 × 판매 수량</div>
+                                    </div>
+                                    <div className="glass p-3">
+                                        <div className="font-bold text-white mb-1">변동비 (Variable Cost)</div>
+                                        <div className="text-text-muted fa-xs">재료 원가(BOM) × 판매 수량</div>
+                                    </div>
+                                    <div className="glass p-3">
+                                        <div className="font-bold text-white mb-1">운영비 (Fixed Cost)</div>
+                                        <div className="text-text-muted fa-xs">고정 지출 + 추가 입력 비용 (재고 손실 제외)</div>
+                                    </div>
+                                    <div className="glass p-3 border-l-2 border-amber-400">
+                                        <div className="font-bold text-amber-400 mb-1">재고 손실 (Inventory Loss)</div>
+                                        <div className="text-text-muted fa-xs">재고 실사를 통해 파악된 손실 금액</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <h4 className="font-bold text-lg text-primary border-b border-primary/30 pb-2">배분 및 순수익</h4>
+                                <div className="space-y-3 text-sm">
+                                    <div className="glass p-3">
+                                        <div className="font-bold text-white mb-1">순수익 계산</div>
+                                        <div className="text-text-muted fa-xs">매출 - (변동비 + 배분된 운영비 + 재고 손실)</div>
+                                    </div>
+                                    <div className="glass p-3">
+                                        <div className="font-bold text-white mb-1">운영비 배분 기준</div>
+                                        <ul className="list-disc list-inside text-text-muted text-xs space-y-1 mt-1">
+                                            <li><span className="text-white font-bold">판매량 비례</span>: 많이 팔린 제품에 운영비를 더 많이 배분</li>
+                                            <li><span className="text-white font-bold">매출액 비례</span>: 비싼 제품에 운영비를 더 많이 배분</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-primary/5 border border-primary/20 p-4 rounded-xl flex gap-4 items-start">
+                            <Info className="shrink-0 text-primary mt-1" size={20} />
+                            <div className="text-sm text-text-muted">
+                                <span className="text-white font-bold block mb-1">💡 팁</span>
+                                '예상(시뮬레이션)' 모드에서는 아직 팔리지 않은 재고도 모두 팔렸다고 가정하여 최대 수익을 예측해 볼 수 있습니다.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

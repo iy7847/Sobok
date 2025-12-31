@@ -11,13 +11,15 @@ import {
     ArrowRight,
     Info,
     ChevronDown,
-    Layers
+    Layers,
+    AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { NumberInput } from '../components/common/NumberInput';
 
 const ItemsPage: React.FC = () => {
     const navigate = useNavigate();
-    const { items, loading, fetchItems, saveItem, deleteItem } = useItems();
+    const { items, loading, error, fetchItems, saveItem, deleteItem } = useItems();
     const [filter, setFilter] = useState<ItemType | 'All'>('All');
     const [search, setSearch] = useState('');
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -37,7 +39,7 @@ const ItemsPage: React.FC = () => {
         if (item) {
             setEditingItem(item);
         } else {
-            setEditingItem({ type: filter === 'All' ? 'Product' : filter, purchase_qty: 1, usage_qty: 1 });
+            setEditingItem({ type: filter === 'All' ? 'Product' : filter, purchase_qty: 1, usage_qty: 100 });
         }
         setIsFormOpen(true);
     };
@@ -89,6 +91,17 @@ const ItemsPage: React.FC = () => {
                 </button>
             </div>
 
+            {error && (
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-center gap-3 text-red-400"
+                >
+                    <AlertTriangle size={24} />
+                    <p className="font-medium">{error}</p>
+                </motion.div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="md:col-span-3 space-y-6">
                     {/* Filters & Search */}
@@ -108,7 +121,8 @@ const ItemsPage: React.FC = () => {
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
                             <input
                                 type="text"
-                                className="input-field pl-12 h-full"
+                                className="input-field h-full"
+                                style={{ paddingLeft: '3.5rem' }}
                                 placeholder="품목 검색..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
@@ -121,11 +135,11 @@ const ItemsPage: React.FC = () => {
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
                                 <thead>
-                                    <tr className="border-b border-white/5 text-xs font-bold text-text-muted uppercase tracking-wider">
-                                        <th className="px-6 py-5">유형</th>
-                                        <th className="px-6 py-5">품목 명칭</th>
-                                        <th className="px-6 py-5 text-right">단가 / 판매가</th>
-                                        <th className="px-6 py-5 text-right">관리</th>
+                                    <tr className="text-[10px] font-black text-text-muted uppercase tracking-widest border-b border-white/5">
+                                        <th className="px-6 py-4 whitespace-nowrap">유형</th>
+                                        <th className="px-6 py-4">품목 명칭</th>
+                                        <th className="px-6 py-4 text-right">단가 / 판매가</th>
+                                        <th className="px-6 py-4 text-right">관리</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
@@ -146,15 +160,9 @@ const ItemsPage: React.FC = () => {
                                         </tr>
                                     ) : (
                                         filteredItems.map((item) => (
-                                            <motion.tr
-                                                layout
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                key={item.id}
-                                                className="group hover:bg-white/[0.02] transition-colors"
-                                            >
-                                                <td className="px-6 py-5">
-                                                    <span className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${getTypeColor(item.type)}`}>
+                                            <tr key={item.id} className="group hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0">
+                                                <td className="px-6 py-5 whitespace-nowrap">
+                                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-md border ${getTypeColor(item.type)}`}>
                                                         {getTypeLabel(item.type)}
                                                     </span>
                                                 </td>
@@ -163,11 +171,16 @@ const ItemsPage: React.FC = () => {
                                                     {item.remarks && <div className="text-xs text-text-muted mt-1">{item.remarks}</div>}
                                                 </td>
                                                 <td className="px-6 py-5 text-right">
-                                                    <div className="font-mono font-bold text-lg">
+                                                    <div className="font-mono font-bold text-lg flex flex-col items-end">
                                                         {item.type === 'Material' ? (
-                                                            <span className="text-blue-400">{item.cost_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}원<small className="ml-1 text-[10px] opacity-50">/g</small></span>
+                                                            <span className="text-blue-400">{item.cost_price.toLocaleString(undefined, { minimumFractionDigits: 0 })}원<small className="ml-1 text-[10px] opacity-70">/{item.purchase_unit || 'g'}</small></span>
                                                         ) : (
-                                                            <span className="text-emerald-400">{item.selling_price.toLocaleString()}원</span>
+                                                            <>
+                                                                <span className="text-emerald-400">{item.selling_price.toLocaleString()}원</span>
+                                                                <span className="text-[10px] text-text-muted font-normal">
+                                                                    원가: {item.cost_price ? item.cost_price.toLocaleString() : 0}원
+                                                                </span>
+                                                            </>
                                                         )}
                                                     </div>
                                                 </td>
@@ -195,7 +208,7 @@ const ItemsPage: React.FC = () => {
                                                         </button>
                                                     </div>
                                                 </td>
-                                            </motion.tr>
+                                            </tr>
                                         ))
                                     )}
                                 </tbody>
@@ -246,7 +259,7 @@ const ItemsPage: React.FC = () => {
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="w-full max-w-2xl glass p-8 relative z-10"
+                            className="w-full max-w-2xl glass p-8 relative z-10 max-h-[85vh] overflow-y-auto"
                         >
                             <div className="flex justify-between items-center mb-8">
                                 <h2 className="text-2xl font-bold flex items-center gap-3">
@@ -269,9 +282,9 @@ const ItemsPage: React.FC = () => {
                                             value={editingItem?.type}
                                             onChange={(e) => setEditingItem({ ...editingItem, type: e.target.value as ItemType })}
                                         >
-                                            <option value="Product">🎁 완제품</option>
-                                            <option value="Component">🍰 반제품</option>
-                                            <option value="Material">📦 원자재</option>
+                                            <option value="Product" className="text-black bg-white">🎁 완제품</option>
+                                            <option value="Component" className="text-black bg-white">🍰 반제품</option>
+                                            <option value="Material" className="text-black bg-white">📦 원자재</option>
                                         </select>
                                     </div>
                                     <div className="space-y-2">
@@ -295,45 +308,57 @@ const ItemsPage: React.FC = () => {
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                             <div className="space-y-2">
                                                 <label className="text-xs font-bold text-text-muted">총 구매가 (원)</label>
-                                                <input
-                                                    type="number"
+                                                <NumberInput
                                                     className="input-field"
                                                     placeholder="0"
                                                     value={editingItem?.purchase_price || 0}
-                                                    onChange={(e) => setEditingItem({ ...editingItem, purchase_price: Number(e.target.value) })}
+                                                    onChange={(val) => setEditingItem({ ...editingItem, purchase_price: val })}
                                                 />
+                                                <p className="text-xs text-text-muted/70">배송비 포함 총 지불 금액</p>
                                             </div>
                                             <div className="space-y-2">
                                                 <label className="text-xs font-bold text-text-muted">구매 용량 (g/ml)</label>
-                                                <input
-                                                    type="number"
-                                                    className="input-field"
-                                                    placeholder="1"
-                                                    value={editingItem?.purchase_qty || 1}
-                                                    onChange={(e) => setEditingItem({ ...editingItem, purchase_qty: Number(e.target.value) })}
-                                                />
+                                                <div className="flex gap-2">
+                                                    <NumberInput
+                                                        className="input-field flex-1"
+                                                        placeholder="1"
+                                                        value={editingItem?.purchase_qty || 1}
+                                                        onChange={(val) => setEditingItem({ ...editingItem, purchase_qty: val })}
+                                                    />
+                                                    <select
+                                                        className="input-field text-center"
+                                                        style={{ width: '6rem' }}
+                                                        value={editingItem?.purchase_unit || 'g'}
+                                                        onChange={(e) => setEditingItem({ ...editingItem, purchase_unit: e.target.value })}
+                                                    >
+                                                        <option value="g" className="text-black bg-white">g</option>
+                                                        <option value="ml" className="text-black bg-white">ml</option>
+                                                        <option value="ea" className="text-black bg-white">ea</option>
+                                                        <option value="mm" className="text-black bg-white">mm</option>
+                                                    </select>
+                                                </div>
+                                                <p className="text-xs text-text-muted/70">포장지에 적힌 총 용량/개수</p>
                                             </div>
                                             <div className="space-y-2">
                                                 <label className="text-xs font-bold text-text-muted">실제 가용량 (%)</label>
-                                                <input
-                                                    type="number"
+                                                <NumberInput
                                                     className="input-field"
-                                                    placeholder="1"
-                                                    value={editingItem?.usage_qty || 1}
-                                                    onChange={(e) => setEditingItem({ ...editingItem, usage_qty: Number(e.target.value) })}
+                                                    placeholder="100"
+                                                    value={editingItem?.usage_qty || 100}
+                                                    onChange={(val) => setEditingItem({ ...editingItem, usage_qty: val })}
                                                 />
+                                                <p className="text-xs text-text-muted/70">손질 후 남는 비율 (100=로스없음)</p>
                                             </div>
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-text-muted uppercase tracking-wider">판매가 (원)</label>
-                                        <input
-                                            type="number"
+                                        <NumberInput
                                             className="input-field text-xl font-bold text-emerald-400"
                                             placeholder="0"
                                             value={editingItem?.selling_price || 0}
-                                            onChange={(e) => setEditingItem({ ...editingItem, selling_price: Number(e.target.value) })}
+                                            onChange={(val) => setEditingItem({ ...editingItem, selling_price: val })}
                                         />
                                     </div>
                                 )}

@@ -29,13 +29,22 @@ export const useStats = () => {
             // 1. Fetch Expenses
             const { data: expenses } = await supabase
                 .from('Expenses')
-                .select('amount')
+                .select('*')
                 .eq('user_id', user.id)
                 .gte('expense_date', startOfMonth)
                 .lte('expense_date', endOfMonth)
                 .returns<Expense[]>();
 
-            const totalExpenses = (expenses || []).reduce((sum: number, e: Expense) => sum + e.amount, 0);
+            let totalOperatingExpenses = 0;
+            let totalInventoryLoss = 0;
+
+            (expenses || []).forEach((e: Expense) => {
+                if (e.category === '재고손실') {
+                    totalInventoryLoss += e.amount;
+                } else {
+                    totalOperatingExpenses += e.amount;
+                }
+            });
 
             // 2. Fetch Products
             const { data: products } = await supabase
@@ -77,7 +86,8 @@ export const useStats = () => {
 
             return {
                 products,
-                totalExpenses,
+                totalOperatingExpenses,
+                totalInventoryLoss,
                 salesMap
             };
         } catch (err) {

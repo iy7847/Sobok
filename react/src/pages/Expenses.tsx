@@ -158,7 +158,8 @@ const ExpensesPage: React.FC = () => {
                                     <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
                                     <input
                                         type="month"
-                                        className="input-field pl-12 h-12"
+                                        className="input-field h-12"
+                                        style={{ paddingLeft: '3.5rem' }}
                                         value={selectedMonth}
                                         onChange={(e) => setSelectedMonth(e.target.value)}
                                     />

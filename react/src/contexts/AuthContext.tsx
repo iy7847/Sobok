@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '../services/supabase';
 import type { User } from '@supabase/supabase-js';
 import type { UserProfile } from '../types';
@@ -25,6 +25,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
+    const userIdRef = useRef<string | null>(null);
+
+    // Sync ref with user state
+    useEffect(() => {
+        userIdRef.current = user?.id || null;
+    }, [user]);
 
     useEffect(() => {
         let mounted = true;
@@ -33,28 +39,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Fallback timeout in case Supabase is unreachable
             const timeoutId = setTimeout(() => {
                 if (mounted) {
-                    console.warn('Auth initialization timed out, defaulting to null user.');
+                    console.warn('[Auth] Initialization timed out (30s). Check network connection.');
                     setLoading(false);
                 }
-            }, 3000);
+            }, 30000);
 
             try {
+                console.log('[Auth] Initializing session check...');
                 // Check active sessions and sets the user
                 const { data: { session }, error } = await supabase.auth.getSession();
 
                 if (error) {
-                    console.error('Error fetching session:', error);
+                    console.error('[Auth] Error fetching session:', error);
                     throw error;
                 }
 
                 if (mounted) {
-                    setUser(session?.user ?? null);
                     if (session?.user) {
-                        fetchProfile(session.user.id); // fire and forget
+                        console.log("저장된 세션 복구됨"); // User requested log
+                        console.log('[Auth] Session found for user:', session.user.id);
+                        setUser(prev => prev?.id === session.user.id ? prev : session.user);
+                        // Non-blocking profile fetch to speed up initial load
+                        fetchProfile(session.user.id);
+                    } else {
+                        console.log('[Auth] No active session found.');
+                        setUser(null);
                     }
                 }
             } catch (err) {
-                console.error('Auth initialization error:', err);
+                console.error('[Auth] Initialization error:', err);
                 if (mounted) setUser(null);
             } finally {
                 clearTimeout(timeoutId);
@@ -65,11 +78,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         initializeAuth();
 
         // Listen for changes on auth state
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log(`[Auth] Auth state changed: ${event}`, session?.user?.id);
+
+            // Ignore redundant events if user is already same
+            if (session?.user?.id && session.user.id === userIdRef.current) {
+                console.log('[Auth] Ignoring redundant auth change (same user)');
+                return;
+            }
+
             if (mounted) {
-                setUser(session?.user ?? null);
-                if (session?.user) {
-                    await fetchProfile(session.user.id);
+                const newUser = session?.user ?? null;
+                // Only update if ID changed (though the check above handles most cases)
+                setUser(prev => prev?.id === newUser?.id ? prev : newUser);
+
+                if (newUser) {
+                    // Non-blocking profile fetch
+                    fetchProfile(newUser.id);
                 } else {
                     setProfile(null);
                 }
@@ -91,29 +116,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .single();
 
         if (error) {
-            console.error('Error fetching profile:', error);
+            console.error('[Auth] Error fetching profile:', error);
         } else {
-            setProfile(data);
+            console.log('[Auth] Profile fetched successfully');
+            setProfile(prev => JSON.stringify(prev) === JSON.stringify(data) ? prev : data);
         }
     };
 
-    const updateProfile = (newProfile: Partial<UserProfile>) => {
+    const updateProfile = useCallback((newProfile: Partial<UserProfile>) => {
         if (profile) {
             setProfile({ ...profile, ...newProfile });
         }
-    };
+    }, [profile]);
 
-    const signOut = async () => {
+    const signOut = useCallback(async () => {
         await supabase.auth.signOut();
-    };
+    }, []);
 
-    const value = {
+    const value = useMemo(() => ({
         user,
         profile,
         loading,
         signOut,
         updateProfile,
-    };
+    }), [user, profile, loading, signOut, updateProfile]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

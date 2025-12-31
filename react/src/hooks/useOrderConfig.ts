@@ -39,7 +39,7 @@ export const useOrderConfig = () => {
             };
 
             const { error } = await supabase
-                .from('UserProfiles')
+                .from('Profiles')
                 .update(updates)
                 .eq('id', user.id);
 

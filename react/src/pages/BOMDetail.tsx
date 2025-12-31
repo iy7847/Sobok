@@ -221,7 +221,8 @@ const BOMDetailPage: React.FC = () => {
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
                                 <input
                                     type="text"
-                                    className="input-field pl-10 text-sm"
+                                    className="input-field pl-14 text-sm"
+                                    style={{ paddingLeft: '3.5rem' }}
                                     placeholder="재료 이름 검색..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -317,8 +318,17 @@ const BOMDetailPage: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 font-bold text-sm">
-                                                {bom.child_item?.name}
-                                                <div className="text-[10px] font-normal text-text-muted mt-0.5">단가: {bom.child_item?.cost_price.toLocaleString()}원</div>
+                                                <div className="flex items-center gap-2">
+                                                    {bom.child_item?.name}
+                                                    {(!bom.child_item?.cost_price || bom.child_item.cost_price === 0) && (
+                                                        <div className="text-amber-500 tooltip" title="원가가 0원입니다. 해당 품목의 BOM을 확인하세요.">
+                                                            <AlertCircle size={14} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className={`text-[10px] font-normal mt-0.5 ${(!bom.child_item?.cost_price || bom.child_item.cost_price === 0) ? 'text-amber-500/80' : 'text-text-muted'}`}>
+                                                    단가: {bom.child_item?.cost_price?.toLocaleString() || 0}원
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <input
