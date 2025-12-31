@@ -128,7 +128,7 @@ const ExpensesPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Summary Card */}
                 <div className="lg:col-span-4 space-y-6">
-                    <div className="glass p-8 space-y-4 border-l-4 border-l-primary bg-primary/5">
+                    <div className="glass p-6 md:p-8 space-y-4 border-l-4 border-l-primary bg-primary/5">
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-xs font-black text-primary uppercase tracking-widest mb-1">
@@ -191,7 +191,7 @@ const ExpensesPage: React.FC = () => {
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -20 }}
-                                className="glass p-8 border-t-4 border-t-primary"
+                                className="glass p-6 md:p-8 border-t-4 border-t-primary"
                             >
                                 <div className="flex justify-between items-center mb-8">
                                     <h3 className="text-xl font-black flex items-center gap-3">
@@ -297,7 +297,63 @@ const ExpensesPage: React.FC = () => {
                                 animate={{ opacity: 1 }}
                                 className="glass overflow-hidden"
                             >
-                                <div className="overflow-x-auto">
+                                {/* Mobile Card View */}
+                                <div className="md:hidden divide-y divide-white/5">
+                                    {(activeTab === 'History' ? expenses : fixedCosts).length === 0 ? (
+                                        <div className="py-20 text-center text-text-muted italic">데이터가 없습니다.</div>
+                                    ) : (
+                                        (activeTab === 'History' ? expenses : fixedCosts).map((item) => {
+                                            const historyItem = item as Expense;
+                                            const templateItem = item as FixedCost;
+                                            return (
+                                                <div key={item.id} className="p-5 space-y-4 hover:bg-white/[0.02] transition-colors">
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <div className="font-bold text-lg text-white">{historyItem.name || templateItem.name}</div>
+                                                            {activeTab === 'History' ? (
+                                                                <div className="text-xs text-text-muted mt-1">{new Date(historyItem.expense_date).toLocaleDateString()}</div>
+                                                            ) : (
+                                                                <div className="text-xs text-text-muted mt-1 flex items-center gap-1"><Clock size={10} /> 매월 {templateItem.payment_day}일</div>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className={`font-mono font-bold text-lg ${activeTab === 'History' ? 'text-red-400' : 'text-primary'}`}>
+                                                                {item.amount.toLocaleString()}원
+                                                            </div>
+                                                            {activeTab === 'History' && (
+                                                                <span className="px-2 py-0.5 rounded-md bg-white/5 text-[10px] text-text-muted border border-white/10 uppercase font-bold tracking-wider mt-1 inline-block">
+                                                                    {historyItem.category}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex justify-between items-center pt-2 border-t border-white/5">
+                                                        <div className="text-xs text-text-muted truncate flex-1 pr-4">
+                                                            {item.description || "설명 없음"}
+                                                        </div>
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                onClick={() => handleShowForm(item)}
+                                                                className="p-2 rounded-lg bg-white/5 text-text-muted hover:bg-white/10 hover:text-white transition-all"
+                                                            >
+                                                                <Edit2 size={16} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(item.id)}
+                                                                className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all"
+                                                            >
+                                                                <Trash2 size={16} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+
+                                {/* Desktop Table View */}
+                                <div className="hidden md:block overflow-x-auto">
                                     <table className="w-full text-left">
                                         <thead>
                                             <tr className="bg-white/[0.02] text-[10px] font-black text-text-muted uppercase tracking-widest border-b border-white/5">

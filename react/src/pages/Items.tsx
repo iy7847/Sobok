@@ -130,89 +130,142 @@ const ItemsPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Items Table/List */}
+                    {/* Items List */}
                     <div className="glass overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="text-[10px] font-black text-text-muted uppercase tracking-widest border-b border-white/5">
-                                        <th className="px-6 py-4 whitespace-nowrap">유형</th>
-                                        <th className="px-6 py-4">품목 명칭</th>
-                                        <th className="px-6 py-4 text-right">단가 / 판매가</th>
-                                        <th className="px-6 py-4 text-right">관리</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-white/5">
-                                    {loading ? (
-                                        <tr>
-                                            <td colSpan={4} className="px-6 py-20 text-center">
-                                                <div className="flex flex-col items-center gap-4">
-                                                    <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                                                    <p className="text-text-muted font-medium">데이터를 불러오는 중...</p>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ) : filteredItems.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={4} className="px-6 py-20 text-center">
-                                                <p className="text-text-muted font-medium">등록된 품목이 없습니다.</p>
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        filteredItems.map((item) => (
-                                            <tr key={item.id} className="group hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0">
-                                                <td className="px-6 py-5 whitespace-nowrap">
-                                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-md border ${getTypeColor(item.type)}`}>
+                        {/* Desktop Table Header */}
+                        <div className="hidden md:grid grid-cols-[1fr_2fr_1fr_1fr] gap-4 px-6 py-4 border-b border-white/5 text-[10px] font-black text-text-muted uppercase tracking-widest bg-white/[0.02]">
+                            <div>유형</div>
+                            <div>품목 명칭</div>
+                            <div className="text-right">단가 / 판매가</div>
+                            <div className="text-right">관리</div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="divide-y divide-white/5">
+                            {loading ? (
+                                <div className="py-20 text-center">
+                                    <div className="flex flex-col items-center gap-4">
+                                        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                                        <p className="text-text-muted font-medium">데이터를 불러오는 중...</p>
+                                    </div>
+                                </div>
+                            ) : filteredItems.length === 0 ? (
+                                <div className="py-20 text-center">
+                                    <p className="text-text-muted font-medium">등록된 품목이 없습니다.</p>
+                                </div>
+                            ) : (
+                                filteredItems.map((item) => (
+                                    <React.Fragment key={item.id}>
+                                        {/* Mobile Card View */}
+                                        <div className="md:hidden p-5 space-y-4 hover:bg-white/[0.02] transition-colors">
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex gap-2 items-center">
+                                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-md border flex items-center gap-1 ${getTypeColor(item.type)}`}>
+                                                        {item.type === 'Product' && '🎁'}
+                                                        {item.type === 'Component' && '🍰'}
+                                                        {item.type === 'Material' && '📦'}
                                                         {getTypeLabel(item.type)}
                                                     </span>
-                                                </td>
-                                                <td className="px-6 py-5">
-                                                    <div className="font-bold text-lg">{item.name}</div>
-                                                    {item.remarks && <div className="text-xs text-text-muted mt-1">{item.remarks}</div>}
-                                                </td>
-                                                <td className="px-6 py-5 text-right">
-                                                    <div className="font-mono font-bold text-lg flex flex-col items-end">
-                                                        {item.type === 'Material' ? (
-                                                            <span className="text-blue-400">{item.cost_price.toLocaleString(undefined, { minimumFractionDigits: 0 })}원<small className="ml-1 text-[10px] opacity-70">/{item.purchase_unit || 'g'}</small></span>
-                                                        ) : (
-                                                            <>
-                                                                <span className="text-emerald-400">{item.selling_price.toLocaleString()}원</span>
-                                                                <span className="text-[10px] text-text-muted font-normal">
-                                                                    원가: {item.cost_price ? item.cost_price.toLocaleString() : 0}원
-                                                                </span>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-5">
-                                                    <div className="flex justify-end gap-2">
-                                                        {item.type !== 'Material' && (
-                                                            <button
-                                                                onClick={() => navigate(`/items/${item.id}`)}
-                                                                className="p-2.5 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all"
-                                                            >
-                                                                <Layers size={18} />
-                                                            </button>
-                                                        )}
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    {item.type !== 'Material' && (
                                                         <button
-                                                            onClick={() => handleOpenForm(item)}
-                                                            className="p-2.5 rounded-xl bg-white/5 text-text-muted hover:bg-white/10 hover:text-white transition-all"
+                                                            onClick={() => navigate(`/items/${item.id}`)}
+                                                            className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all"
                                                         >
-                                                            <Edit2 size={18} />
+                                                            <Layers size={16} />
                                                         </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => handleOpenForm(item)}
+                                                        className="p-2 rounded-lg bg-white/5 text-text-muted hover:bg-white/10 hover:text-white transition-all"
+                                                    >
+                                                        <Edit2 size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { if (confirm('삭제하시겠습니까?')) deleteItem(item.id) }}
+                                                        className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <div className="font-bold text-lg">{item.name}</div>
+                                                {item.remarks && <div className="text-xs text-text-muted mt-1">{item.remarks}</div>}
+                                            </div>
+
+                                            <div className="flex justify-between items-center p-3 rounded-lg bg-white/5">
+                                                <span className="text-xs font-bold text-text-muted">가격 정보</span>
+                                                <div className="font-mono font-bold text-lg flex flex-col items-end">
+                                                    {item.type === 'Material' ? (
+                                                        <span className="text-blue-400">{item.cost_price.toLocaleString(undefined, { minimumFractionDigits: 0 })}원<small className="ml-1 text-[10px] opacity-70">/{item.purchase_unit || 'g'}</small></span>
+                                                    ) : (
+                                                        <div className="text-right">
+                                                            <div className="text-emerald-400">{item.selling_price.toLocaleString()}원</div>
+                                                            <div className="text-[10px] text-text-muted font-normal">
+                                                                원가: {item.cost_price ? item.cost_price.toLocaleString() : 0}원
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Desktop Table Row */}
+                                        <div className="hidden md:grid grid-cols-[1fr_2fr_1fr_1fr] gap-4 px-6 py-5 items-center hover:bg-white/[0.02] transition-colors">
+                                            <div>
+                                                <span className={`text-[10px] font-bold px-2 py-1 rounded-md border ${getTypeColor(item.type)}`}>
+                                                    {getTypeLabel(item.type)}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-lg">{item.name}</div>
+                                                {item.remarks && <div className="text-xs text-text-muted mt-1">{item.remarks}</div>}
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="font-mono font-bold text-lg flex flex-col items-end">
+                                                    {item.type === 'Material' ? (
+                                                        <span className="text-blue-400">{item.cost_price.toLocaleString(undefined, { minimumFractionDigits: 0 })}원<small className="ml-1 text-[10px] opacity-70">/{item.purchase_unit || 'g'}</small></span>
+                                                    ) : (
+                                                        <>
+                                                            <span className="text-emerald-400">{item.selling_price.toLocaleString()}원</span>
+                                                            <span className="text-[10px] text-text-muted font-normal">
+                                                                원가: {item.cost_price ? item.cost_price.toLocaleString() : 0}원
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="flex justify-end gap-2">
+                                                    {item.type !== 'Material' && (
                                                         <button
-                                                            onClick={() => { if (confirm('삭제하시겠습니까?')) deleteItem(item.id) }}
-                                                            className="p-2.5 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all"
+                                                            onClick={() => navigate(`/items/${item.id}`)}
+                                                            className="p-2.5 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all"
                                                         >
-                                                            <Trash2 size={18} />
+                                                            <Layers size={18} />
                                                         </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                                                    )}
+                                                    <button
+                                                        onClick={() => handleOpenForm(item)}
+                                                        className="p-2.5 rounded-xl bg-white/5 text-text-muted hover:bg-white/10 hover:text-white transition-all"
+                                                    >
+                                                        <Edit2 size={18} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { if (confirm('삭제하시겠습니까?')) deleteItem(item.id) }}
+                                                        className="p-2.5 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all"
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </React.Fragment>
+                                ))
+                            )}
                         </div>
                     </div>
                 </div>

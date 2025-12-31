@@ -15,32 +15,27 @@ import {
     ChevronDown,
     Image as ImageIcon,
     Info,
-    ArrowUp,
-    ArrowDown,
     Upload,
-    AlertCircle
+    AlertCircle,
+    ArrowUp,
+    ArrowDown
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Reorder, useDragControls } from 'framer-motion';
+import type { FormElement } from '../types';
 
-const ConfigPage: React.FC = () => {
-    const {
-        loading,
-        elements,
-        basicInfo,
-        setBasicInfo,
-        loadConfig,
-        saveConfig,
-        addElement,
-        removeElement,
-        updateElement,
-        moveElement
-    } = useOrderConfig();
+interface ConfigItemProps {
+    item: FormElement;
+    index: number;
+    totalCount: number;
+    updateElement: (id: string, updates: Partial<FormElement>) => void;
+    removeElement: (id: string) => void;
+    moveElement: (from: number, to: number) => void;
+}
 
-    useEffect(() => {
-        loadConfig();
-    }, [loadConfig]);
+const ConfigItem = ({ item, index, totalCount, updateElement, removeElement, moveElement }: ConfigItemProps) => {
+    const controls = useDragControls();
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, id: string) => {
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, id: string) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -71,6 +66,141 @@ const ConfigPage: React.FC = () => {
     };
 
     return (
+        <Reorder.Item
+            value={item}
+            id={item.id}
+            dragListener={false}
+            dragControls={controls}
+            whileDrag={{ scale: 1.02, boxShadow: "0px 10px 20px rgba(0,0,0,0.3)", zIndex: 10 }}
+            transition={{ duration: 0.2 }}
+            className="glass group overflow-hidden border border-white/5 relative z-0"
+        >
+            <div className="flex items-center justify-between p-3 bg-white/5 border-b border-white/5 select-none">
+                <div className="flex items-center gap-3">
+                    <div className="flex flex-col mr-1">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); if (index > 0) moveElement(index, index - 1); }}
+                            className={`p-0.5 hover:text-white transition-colors ${index === 0 ? 'text-white/10 cursor-not-allowed' : 'text-text-muted'}`}
+                            disabled={index === 0}
+                        >
+                            <ArrowUp size={12} />
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); if (index < totalCount - 1) moveElement(index, index + 1); }}
+                            className={`p-0.5 hover:text-white transition-colors ${index === totalCount - 1 ? 'text-white/10 cursor-not-allowed' : 'text-text-muted'}`}
+                            disabled={index === totalCount - 1}
+                        >
+                            <ArrowDown size={12} />
+                        </button>
+                    </div>
+                    <div
+                        className="p-2 cursor-grab active:cursor-grabbing hover:bg-white/10 rounded transition-colors touch-none"
+                        onPointerDown={(e) => controls.start(e)}
+                    >
+                        <GripVertical className="text-text-muted" size={18} />
+                    </div>
+                    <span className="px-2 py-0.5 rounded bg-white/10 text-[10px] font-black uppercase text-white/50 border border-white/10">
+                        {getTypeName(item.type)}
+                    </span>
+                </div>
+                <button
+                    onClick={() => removeElement(item.id!)}
+                    className="p-2 hover:bg-red-400/10 text-text-muted hover:text-red-400 rounded-lg transition-all"
+                >
+                    <Trash2 size={16} />
+                </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+                {item.type === 'Image' && (
+                    <div className="flex flex-col items-center gap-4 py-4 bg-white/5 rounded-2xl border-2 border-dashed border-white/10">
+                        {item.options ? (
+                            <img src={item.options} className="max-h-48 rounded-xl shadow-2xl" alt="Preview" />
+                        ) : (
+                            <ImageIcon size={48} className="text-text-muted" />
+                        )}
+                        <label className="btn btn-primary py-2 px-4 text-xs cursor-pointer">
+                            <Upload size={14} className="mr-2" /> 이미지 업로드
+                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, item.id!)} />
+                        </label>
+                    </div>
+                )}
+
+                <div className="space-y-2">
+                    <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">
+                        {item.type === 'Notice' ? '안내 문구' : '항목 제목'}
+                    </label>
+                    {item.type === 'Notice' ? (
+                        <textarea
+                            className="input-field h-24 py-4"
+                            value={item.label}
+                            onChange={(e) => updateElement(item.id!, { label: e.target.value })}
+                        />
+                    ) : item.type !== 'Image' && (
+                        <input
+                            className="input-field font-bold"
+                            value={item.label}
+                            onChange={(e) => updateElement(item.id!, { label: e.target.value })}
+                        />
+                    )}
+                </div>
+
+                {['Select', 'Radio', 'Checkbox'].includes(item.type) && (
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-text-muted uppercase tracking-widest flex items-center gap-2">
+                            옵션 입력 (쉼표로 구분) <Info size={12} className="text-primary" />
+                        </label>
+                        <input
+                            className="input-field text-sm"
+                            placeholder="예: 기본, 선물포장 (+1000), 보냉백 (+500)"
+                            value={item.options}
+                            onChange={(e) => updateElement(item.id!, { options: e.target.value })}
+                        />
+                        <p className="text-[10px] text-text-muted">
+                            Tip: <strong className="text-primary">(+금액)</strong>을 붙이면 자동으로 결제 금액에 추가됩니다.
+                        </p>
+                    </div>
+                )}
+
+                {item.type !== 'Notice' && item.type !== 'Image' && (
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="checkbox"
+                            id={`req-${item.id}`}
+                            className="w-4 h-4 rounded border-white/10 bg-white/5 text-primary focus:ring-primary"
+                            checked={item.required}
+                            onChange={(e) => updateElement(item.id!, { required: e.target.checked })}
+                        />
+                        <label htmlFor={`req-${item.id}`} className="text-xs font-bold text-text-muted cursor-pointer">
+                            필수 입력 항목
+                        </label>
+                    </div>
+                )}
+            </div>
+        </Reorder.Item>
+    );
+};
+
+const ConfigPage: React.FC = () => {
+    const {
+        loading,
+        elements,
+        basicInfo,
+        setBasicInfo,
+        loadConfig,
+        saveConfig,
+        addElement,
+        removeElement,
+        updateElement,
+        moveElement,
+        setElements
+    } = useOrderConfig();
+
+    useEffect(() => {
+        loadConfig();
+    }, [loadConfig]);
+
+    return (
         <div className="max-w-6xl mx-auto space-y-8 pb-32">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
@@ -86,7 +216,11 @@ const ConfigPage: React.FC = () => {
                     disabled={loading}
                     className="btn btn-primary px-8 py-4 shadow-xl shadow-primary/20 flex items-center gap-2 font-black"
                 >
-                    {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={20} />}
+                    {loading ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                        <Save size={20} />
+                    )}
                     저장하기
                 </button>
             </div>
@@ -130,91 +264,19 @@ const ConfigPage: React.FC = () => {
 
                     {/* Form Elements */}
                     <div className="space-y-4">
-                        <AnimatePresence initial={false}>
+                        <Reorder.Group axis="y" values={elements} onReorder={setElements} className="space-y-4">
                             {elements.map((el, index) => (
-                                <motion.div
-                                    key={el.id || `el-${index}`}
-                                    layout
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: 20 }}
-                                    className="glass group overflow-hidden border border-white/5 active:shadow-2xl active:scale-[1.01] transition-all"
-                                >
-                                    <div className="flex items-center justify-between p-3 bg-white/5 border-b border-white/5">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex flex-col">
-                                                <button onClick={(e) => { e.stopPropagation(); if (index > 0) moveElement(index, index - 1); }} className="p-1 hover:text-white transition-all"><ArrowUp size={14} /></button>
-                                                <button onClick={(e) => { e.stopPropagation(); if (index < elements.length - 1) moveElement(index, index + 1); }} className="p-1 hover:text-white transition-all"><ArrowDown size={14} /></button>
-                                            </div>
-                                            <GripVertical className="text-text-muted cursor-move" size={18} />
-                                            <span className="px-2 py-0.5 rounded bg-white/10 text-[10px] font-black uppercase text-white/50 border border-white/10">{getTypeName(el.type)}</span>
-                                        </div>
-                                        <button onClick={() => removeElement(el.id!)} className="p-2 hover:bg-red-400/10 text-text-muted hover:text-red-400 rounded-lg transition-all"><Trash2 size={16} /></button>
-                                    </div>
-
-                                    <div className="p-6 space-y-4">
-                                        {el.type === 'Image' && (
-                                            <div className="flex flex-col items-center gap-4 py-4 bg-white/5 rounded-2xl border-2 border-dashed border-white/10">
-                                                {el.options ? (
-                                                    <img src={el.options} className="max-h-48 rounded-xl shadow-2xl" alt="Preview" />
-                                                ) : (
-                                                    <ImageIcon size={48} className="text-text-muted" />
-                                                )}
-                                                <label className="btn btn-primary py-2 px-4 text-xs cursor-pointer">
-                                                    <Upload size={14} className="mr-2" /> 이미지 업로드
-                                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, el.id!)} />
-                                                </label>
-                                            </div>
-                                        )}
-
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black text-text-muted uppercase tracking-widest">{el.type === 'Notice' ? '안내 문구' : '항목 제목'}</label>
-                                            {el.type === 'Notice' ? (
-                                                <textarea
-                                                    className="input-field h-24 py-4"
-                                                    value={el.label}
-                                                    onChange={(e) => updateElement(el.id!, { label: e.target.value })}
-                                                />
-                                            ) : el.type !== 'Image' && (
-                                                <input
-                                                    className="input-field font-bold"
-                                                    value={el.label}
-                                                    onChange={(e) => updateElement(el.id!, { label: e.target.value })}
-                                                />
-                                            )}
-                                        </div>
-
-                                        {['Select', 'Radio', 'Checkbox'].includes(el.type) && (
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black text-text-muted uppercase tracking-widest flex items-center gap-2">
-                                                    옵션 입력 (쉼표로 구분) <Info size={12} className="text-primary" />
-                                                </label>
-                                                <input
-                                                    className="input-field text-sm"
-                                                    placeholder="예: 기본, 선물포장 (+1000), 보냉백 (+500)"
-                                                    value={el.options}
-                                                    onChange={(e) => updateElement(el.id!, { options: e.target.value })}
-                                                />
-                                                <p className="text-[10px] text-text-muted">Tip: <strong className="text-primary">(+금액)</strong>을 붙이면 자동으로 결제 금액에 추가됩니다.</p>
-                                            </div>
-                                        )}
-
-                                        {el.type !== 'Notice' && el.type !== 'Image' && (
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="checkbox"
-                                                    id={`req-${el.id}`}
-                                                    className="w-4 h-4 rounded border-white/10 bg-white/5 text-primary focus:ring-primary"
-                                                    checked={el.required}
-                                                    onChange={(e) => updateElement(el.id!, { required: e.target.checked })}
-                                                />
-                                                <label htmlFor={`req-${el.id}`} className="text-xs font-bold text-text-muted cursor-pointer">필수 입력 항목</label>
-                                            </div>
-                                        )}
-                                    </div>
-                                </motion.div>
+                                <ConfigItem
+                                    key={el.id}
+                                    item={el}
+                                    index={index}
+                                    totalCount={elements.length}
+                                    updateElement={updateElement}
+                                    removeElement={removeElement}
+                                    moveElement={moveElement}
+                                />
                             ))}
-                        </AnimatePresence>
+                        </Reorder.Group>
 
                         {elements.length === 0 && (
                             <div className="py-20 text-center glass border-dashed bg-white/0 border-white/10">

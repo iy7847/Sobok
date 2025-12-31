@@ -312,250 +312,287 @@ const OrdersPage: React.FC = () => {
 
             {/* Orders Table */}
             <div className="glass overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="border-b border-white/5 text-[10px] font-black text-text-muted uppercase tracking-widest">
-                                <th className="px-6 py-5">상태</th>
-                                <th className="px-6 py-5">고객명 / 연락처</th>
-                                <th className="px-6 py-5">주문 요약</th>
-                                <th className="px-6 py-5 text-right">총 금액</th>
-                                <th className="px-6 py-5 text-right">일시</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={5} className="py-20 text-center">
-                                        <RefreshCw className="animate-spin text-primary inline-block mb-2" size={32} />
-                                        <p className="text-text-muted font-bold">주문을 동기화하는 중...</p>
-                                    </td>
-                                </tr>
-                            ) : filteredOrders.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="py-20 text-center text-text-muted italic">조회된 주문 내역이 없습니다.</td>
-                                </tr>
-                            ) : (
-                                filteredOrders.map(order => (
-                                    <React.Fragment key={order.id}>
-                                        <tr
-                                            onClick={() => toggleExpand(order)}
-                                            className={`group hover:bg-white/[0.02] cursor-pointer transition-all ${expandedOrderId === order.id ? 'bg-primary/5' : ''}`}
-                                        >
-                                            <td className="px-6 py-5">
-                                                <span className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-2 w-fit ${getStatusColor(order.status)}`}>
+                {/* Orders List */}
+                <div className="glass overflow-hidden">
+                    {/* Desktop Table Header */}
+                    <div className="hidden md:grid grid-cols-[1fr_2fr_3fr_1fr_1fr] gap-4 px-6 py-4 border-b border-white/5 text-[10px] font-black text-text-muted uppercase tracking-widest bg-white/[0.02]">
+                        <div>상태</div>
+                        <div>고객명 / 연락처</div>
+                        <div>주문 요약</div>
+                        <div className="text-right">총 금액</div>
+                        <div className="text-right">일시</div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="divide-y divide-white/5">
+                        {loading ? (
+                            <div className="py-20 text-center">
+                                <RefreshCw className="animate-spin text-primary inline-block mb-2" size={32} />
+                                <p className="text-text-muted font-bold">주문을 동기화하는 중...</p>
+                            </div>
+                        ) : filteredOrders.length === 0 ? (
+                            <div className="py-20 text-center text-text-muted italic">조회된 주문 내역이 없습니다.</div>
+                        ) : (
+                            filteredOrders.map(order => (
+                                <React.Fragment key={order.id}>
+                                    {/* Mobile Card View */}
+                                    <div
+                                        onClick={() => toggleExpand(order)}
+                                        className={`md:hidden p-5 space-y-4 cursor-pointer transition-all ${expandedOrderId === order.id ? 'bg-primary/5' : 'hover:bg-white/[0.02]'}`}
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex gap-2">
+                                                <span className={`px-2 py-1 rounded-md text-[10px] font-bold border flex items-center gap-1 w-fit ${getStatusColor(order.status)}`}>
                                                     {getStatusIcon(order.status)}
                                                     {getStatusLabel(order.status)}
                                                 </span>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <div className="font-bold text-lg">{order.customer_name}</div>
-                                                <div className="text-xs text-text-muted flex items-center gap-1"><Phone size={10} /> {order.customer_phone}</div>
-                                            </td>
-                                            <td className="px-6 py-5">
-                                                <div className="text-sm font-medium text-white/90">
-                                                    {order.Items && order.Items.length > 0
-                                                        ? `${order.Items[0].item_name} ${order.Items.length > 1 ? `외 ${order.Items.length - 1}건` : ''}`
-                                                        : (order.custom_data?.selected_product?.name || '상품 정보 없음')
-                                                    }
-                                                </div>
-                                                <div className="flex gap-1 mt-1">
-                                                    {getDisplayFields(order).slice(0, 2).map((c: any, i: number) => (
-                                                        <span key={i} className="text-[10px] bg-white/5 text-text-muted px-2 py-0.5 rounded border border-white/5">{c.value}</span>
-                                                    ))}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-5 text-right">
-                                                <div className="font-mono font-bold text-lg text-primary">{order.total_amount.toLocaleString()}원</div>
-                                            </td>
-                                            <td className="px-6 py-5 text-right flex flex-col items-end">
-                                                <span className="text-xs font-bold text-white/70">{new Date(order.created_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })}</span>
-                                                <span className="text-[10px] text-text-muted font-mono">{new Date(order.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
-                                            </td>
-                                        </tr>
-                                        <AnimatePresence>
-                                            {expandedOrderId === order.id && (
-                                                <tr>
-                                                    <td colSpan={5} className="p-0 border-b border-primary/20">
-                                                        <motion.div
-                                                            initial={{ height: 0, opacity: 0 }}
-                                                            animate={{ height: 'auto', opacity: 1 }}
-                                                            exit={{ height: 0, opacity: 0 }}
-                                                            className="overflow-hidden bg-primary/[0.03]"
-                                                        >
-                                                            <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-                                                                <div className="lg:col-span-2 space-y-6">
-                                                                    <div className="flex justify-between items-center">
-                                                                        <h3 className="font-bold flex items-center gap-2"><CreditCard className="text-primary" size={18} /> 주문 품목 상세</h3>
-                                                                        {!isEditMode && <button onClick={() => setIsEditMode(true)} className="text-xs font-bold text-primary hover:underline">수정 모드</button>}
-                                                                    </div>
+                                                <span className="text-[10px] text-text-muted font-mono self-center">
+                                                    {new Date(order.created_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })}
+                                                </span>
+                                            </div>
+                                            <div className="font-mono font-bold text-primary">{order.total_amount.toLocaleString()}원</div>
+                                        </div>
 
-                                                                    <div className="glass p-4 divide-y divide-white/5 space-y-4">
-                                                                        {isEditMode && (
-                                                                            <div className="grid grid-cols-2 gap-4 pb-4">
-                                                                                <div className="space-y-1">
-                                                                                    <label className="text-[10px] font-bold text-text-muted">고객명</label>
-                                                                                    <input
-                                                                                        className="input-field h-9 text-sm"
-                                                                                        value={editingOrder?.customer_name}
-                                                                                        onChange={(e) => setEditingOrder(prev => prev ? { ...prev, customer_name: e.target.value } : null)}
-                                                                                    />
+                                        <div className="space-y-1">
+                                            <div className="font-bold text-lg">{order.customer_name}</div>
+                                            <div className="text-xs text-text-muted flex items-center gap-1">
+                                                <Phone size={10} /> {order.customer_phone}
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white/5 rounded-lg p-3 space-y-2">
+                                            <div className="text-sm font-medium text-white/90 line-clamp-1">
+                                                {order.Items && order.Items.length > 0
+                                                    ? `${order.Items[0].item_name} ${order.Items.length > 1 ? `외 ${order.Items.length - 1}건` : ''}`
+                                                    : (order.custom_data?.selected_product?.name || '상품 정보 없음')
+                                                }
+                                            </div>
+                                            <div className="flex flex-wrap gap-1">
+                                                {getDisplayFields(order).slice(0, 3).map((c: any, i: number) => (
+                                                    <span key={i} className="text-[10px] bg-white/5 text-text-muted px-2 py-0.5 rounded border border-white/5">{c.value}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Desktop Table Row */}
+                                    <div
+                                        onClick={() => toggleExpand(order)}
+                                        className={`hidden md:grid grid-cols-[1fr_2fr_3fr_1fr_1fr] gap-4 px-6 py-5 items-center cursor-pointer transition-all ${expandedOrderId === order.id ? 'bg-primary/5' : 'hover:bg-white/[0.02]'}`}
+                                    >
+                                        <div>
+                                            <span className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-2 w-fit ${getStatusColor(order.status)}`}>
+                                                {getStatusIcon(order.status)}
+                                                {getStatusLabel(order.status)}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-lg">{order.customer_name}</div>
+                                            <div className="text-xs text-text-muted flex items-center gap-1"><Phone size={10} /> {order.customer_phone}</div>
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-medium text-white/90">
+                                                {order.Items && order.Items.length > 0
+                                                    ? `${order.Items[0].item_name} ${order.Items.length > 1 ? `외 ${order.Items.length - 1}건` : ''}`
+                                                    : (order.custom_data?.selected_product?.name || '상품 정보 없음')
+                                                }
+                                            </div>
+                                            <div className="flex gap-1 mt-1">
+                                                {getDisplayFields(order).slice(0, 2).map((c: any, i: number) => (
+                                                    <span key={i} className="text-[10px] bg-white/5 text-text-muted px-2 py-0.5 rounded border border-white/5">{c.value}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="font-mono font-bold text-lg text-primary">{order.total_amount.toLocaleString()}원</div>
+                                        </div>
+                                        <div className="text-right flex flex-col items-end">
+                                            <span className="text-xs font-bold text-white/70">{new Date(order.created_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' })}</span>
+                                            <span className="text-[10px] text-text-muted font-mono">{new Date(order.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Expanded Details Panel (Shared) */}
+                                    <AnimatePresence>
+                                        {expandedOrderId === order.id && (
+                                            <div className="border-b border-primary/20">
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    className="overflow-hidden bg-primary/[0.03]"
+                                                >
+                                                    <div className="p-4 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                                        <div className="lg:col-span-2 space-y-6">
+                                                            <div className="flex justify-between items-center">
+                                                                <h3 className="font-bold flex items-center gap-2"><CreditCard className="text-primary" size={18} /> 주문 품목 상세</h3>
+                                                                {!isEditMode && <button onClick={() => setIsEditMode(true)} className="text-xs font-bold text-primary hover:underline">수정 모드</button>}
+                                                            </div>
+
+                                                            <div className="glass p-4 divide-y divide-white/5 space-y-4">
+                                                                {isEditMode && (
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4">
+                                                                        <div className="space-y-1">
+                                                                            <label className="text-[10px] font-bold text-text-muted">고객명</label>
+                                                                            <input
+                                                                                className="input-field h-9 text-sm"
+                                                                                value={editingOrder?.customer_name}
+                                                                                onChange={(e) => setEditingOrder(prev => prev ? { ...prev, customer_name: e.target.value } : null)}
+                                                                            />
+                                                                        </div>
+                                                                        <div className="space-y-1">
+                                                                            <label className="text-[10px] font-bold text-text-muted">연락처</label>
+                                                                            <input
+                                                                                className="input-field h-9 text-sm"
+                                                                                value={editingOrder?.customer_phone}
+                                                                                onChange={(e) => setEditingOrder(prev => prev ? { ...prev, customer_phone: e.target.value } : null)}
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {editingItems.length > 0 ? (
+                                                                    editingItems.map((pItem) => (
+                                                                        <div key={pItem.id} className="flex justify-between items-center pt-4 first:pt-0">
+                                                                            <div>
+                                                                                <div className="font-bold">{pItem.item_name}</div>
+                                                                                <div className="text-xs text-text-muted">{pItem.price.toLocaleString()}원</div>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-3">
+                                                                                {isEditMode ? (
+                                                                                    <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1 border border-white/10">
+                                                                                        <input
+                                                                                            type="number"
+                                                                                            className="w-12 bg-transparent text-center font-bold text-sm outline-none"
+                                                                                            value={pItem.quantity}
+                                                                                            onChange={(e) => handleUpdateQty(pItem.id, Number(e.target.value))}
+                                                                                        />
+                                                                                        <span className="text-xs text-text-muted pr-2">개</span>
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <div className="font-bold underline underline-offset-4 decoration-primary">{pItem.quantity}개</div>
+                                                                                )}
+                                                                                <div className="text-sm font-mono text-right w-24">{(pItem.price * pItem.quantity).toLocaleString()}원</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))
+                                                                ) : (
+                                                                    editingOrder?.custom_data?.selected_product && (
+                                                                        <div className="flex justify-between items-center pt-4 first:pt-0">
+                                                                            <div>
+                                                                                <div className="font-bold">{editingOrder.custom_data.selected_product.name}</div>
+                                                                                <div className="text-xs text-text-muted">{editingOrder.custom_data.selected_product.selling_price.toLocaleString()}원</div>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-3">
+                                                                                <div className="font-bold text-sm text-primary border border-primary/30 px-2 py-1 rounded bg-primary/5">
+                                                                                    간편 주문 상품
                                                                                 </div>
-                                                                                <div className="space-y-1">
-                                                                                    <label className="text-[10px] font-bold text-text-muted">연락처</label>
-                                                                                    <input
-                                                                                        className="input-field h-9 text-sm"
-                                                                                        value={editingOrder?.customer_phone}
-                                                                                        onChange={(e) => setEditingOrder(prev => prev ? { ...prev, customer_phone: e.target.value } : null)}
-                                                                                    />
+                                                                                <div className="text-sm font-mono text-right w-24">
+                                                                                    {editingOrder.total_amount.toLocaleString()}원
                                                                                 </div>
                                                                             </div>
-                                                                        )}
-
-                                                                        {editingItems.length > 0 ? (
-                                                                            editingItems.map((pItem) => (
-                                                                                <div key={pItem.id} className="flex justify-between items-center pt-4 first:pt-0">
-                                                                                    <div>
-                                                                                        <div className="font-bold">{pItem.item_name}</div>
-                                                                                        <div className="text-xs text-text-muted">{pItem.price.toLocaleString()}원</div>
-                                                                                    </div>
-                                                                                    <div className="flex items-center gap-3">
-                                                                                        {isEditMode ? (
-                                                                                            <div className="flex items-center gap-2 bg-white/5 rounded-lg p-1 border border-white/10">
-                                                                                                <input
-                                                                                                    type="number"
-                                                                                                    className="w-12 bg-transparent text-center font-bold text-sm outline-none"
-                                                                                                    value={pItem.quantity}
-                                                                                                    onChange={(e) => handleUpdateQty(pItem.id, Number(e.target.value))}
-                                                                                                />
-                                                                                                <span className="text-xs text-text-muted pr-2">개</span>
-                                                                                            </div>
-                                                                                        ) : (
-                                                                                            <div className="font-bold underline underline-offset-4 decoration-primary">{pItem.quantity}개</div>
-                                                                                        )}
-                                                                                        <div className="text-sm font-mono text-right w-24">{(pItem.price * pItem.quantity).toLocaleString()}원</div>
-                                                                                    </div>
-                                                                                </div>
-                                                                            ))
-                                                                        ) : (
-                                                                            editingOrder?.custom_data?.selected_product && (
-                                                                                <div className="flex justify-between items-center pt-4 first:pt-0">
-                                                                                    <div>
-                                                                                        <div className="font-bold">{editingOrder.custom_data.selected_product.name}</div>
-                                                                                        <div className="text-xs text-text-muted">{editingOrder.custom_data.selected_product.selling_price.toLocaleString()}원</div>
-                                                                                    </div>
-                                                                                    <div className="flex items-center gap-3">
-                                                                                        <div className="font-bold text-sm text-primary border border-primary/30 px-2 py-1 rounded bg-primary/5">
-                                                                                            간편 주문 상품
-                                                                                        </div>
-                                                                                        <div className="text-sm font-mono text-right w-24">
-                                                                                            {editingOrder.total_amount.toLocaleString()}원
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-                                                                            )
-                                                                        )}
-
-                                                                        <div className="flex justify-between items-center pt-4 border-t border-white/10">
-                                                                            <span className="font-bold text-primary">합계 금액</span>
-                                                                            {isEditMode ? (
-                                                                                <div className="flex items-center gap-2">
-                                                                                    <input
-                                                                                        type="number"
-                                                                                        className="input-field h-10 w-32 text-right font-black text-primary"
-                                                                                        value={editingOrder?.total_amount}
-                                                                                        onChange={(e) => setEditingOrder(prev => prev ? { ...prev, total_amount: Number(e.target.value) } : null)}
-                                                                                    />
-                                                                                    <span>원</span>
-                                                                                </div>
-                                                                            ) : (
-                                                                                <span className="text-xl font-black text-primary">{order.total_amount.toLocaleString()}원</span>
-                                                                            )}
                                                                         </div>
-                                                                    </div>
+                                                                    )
+                                                                )}
 
-                                                                    <div className="space-y-4">
-                                                                        <h3 className="font-bold flex items-center gap-2 text-text-muted"><ChevronRight size={18} /> 고객 선택 정보</h3>
-                                                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                                                            {getDisplayFields(order).map((f: any, i: number) => (
-                                                                                <div key={i} className="glass p-3 space-y-1">
-                                                                                    <div className="text-[10px] font-bold text-text-muted uppercase">{f.label}</div>
-                                                                                    <div className="text-sm font-bold">{f.value}</div>
-                                                                                </div>
-                                                                            ))}
-                                                                            {order.request_note && (
-                                                                                <div className="col-span-full glass p-3 border-l-2 border-l-amber-400">
-                                                                                    <div className="text-[10px] font-bold text-amber-400 uppercase">요청 사항</div>
-                                                                                    <div className="text-sm">{order.request_note}</div>
-                                                                                </div>
-                                                                            )}
+                                                                <div className="flex justify-between items-center pt-4 border-t border-white/10">
+                                                                    <span className="font-bold text-primary">합계 금액</span>
+                                                                    {isEditMode ? (
+                                                                        <div className="flex items-center gap-2">
+                                                                            <input
+                                                                                type="number"
+                                                                                className="input-field h-10 w-32 text-right font-black text-primary"
+                                                                                value={editingOrder?.total_amount}
+                                                                                onChange={(e) => setEditingOrder(prev => prev ? { ...prev, total_amount: Number(e.target.value) } : null)}
+                                                                            />
+                                                                            <span>원</span>
                                                                         </div>
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="space-y-6">
-                                                                    <div className="space-y-2">
-                                                                        <h3 className="font-bold flex items-center gap-2"><Edit className="text-primary" size={18} /> 관리자 메모</h3>
-                                                                        <textarea
-                                                                            className="input-field min-h-[150px] py-4 text-sm"
-                                                                            placeholder="사장님만 볼 수 있는 메모..."
-                                                                            value={currentRemarks}
-                                                                            onChange={(e) => setCurrentRemarks(e.target.value)}
-                                                                        />
-                                                                    </div>
-
-                                                                    <div className="grid gap-3">
-                                                                        {isEditMode ? (
-                                                                            <>
-                                                                                <button onClick={saveChanges} className="btn btn-primary w-full py-4 shadow-xl shadow-primary/20"><Save size={18} /> 수정 내용 저장</button>
-                                                                                <button onClick={() => setIsEditMode(false)} className="btn w-full py-4 bg-white/5 hover:bg-white/10">취소</button>
-                                                                            </>
-                                                                        ) : (
-                                                                            <>
-                                                                                {order.status !== '완료' && (
-                                                                                    <button
-                                                                                        onClick={() => handleStatusChange(order, '완료')}
-                                                                                        className="btn w-full py-4 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-white transition-all shadow-xl shadow-emerald-500/10"
-                                                                                    >
-                                                                                        <CheckCircle2 size={18} /> 처리 완료 및 저장
-                                                                                    </button>
-                                                                                )}
-                                                                                <div className="grid grid-cols-2 gap-3">
-                                                                                    <button onClick={() => handleStatusChange(order, '확인')} className="btn py-4 bg-white/5 border border-white/5 text-xs">확인 중으로</button>
-                                                                                    <button onClick={() => handleStatusChange(order, '취소')} className="btn py-4 bg-red-400/10 text-red-400 border border-red-400/20 text-xs hover:bg-red-400 hover:text-white transition-all">주문 취소</button>
-                                                                                </div>
-                                                                                {(['신규', 'Pending', 'pending'].includes(order.status)) && (
-                                                                                    <button
-                                                                                        onClick={async (e) => {
-                                                                                            e.stopPropagation();
-                                                                                            if (confirm('정말로 이 주문을 완전히 삭제하시겠습니까?\n삭제된 주문은 복구할 수 없습니다.')) {
-                                                                                                await deleteOrder(order.id);
-                                                                                                setExpandedOrderId(null);
-                                                                                            }
-                                                                                        }}
-                                                                                        className="btn w-full py-3 bg-red-500/5 text-red-500/50 hover:bg-red-500 hover:text-white border border-red-500/10 text-xs flex items-center justify-center gap-2 mt-2"
-                                                                                    >
-                                                                                        <Trash2 size={14} /> 주문 영구 삭제
-                                                                                    </button>
-                                                                                )}
-                                                                                {order.status === '완료' && (
-                                                                                    <button onClick={saveChanges} className="btn w-full py-4 bg-primary/10 text-primary border border-primary/20"><Save size={18} /> 메모만 수정 저장</button>
-                                                                                )}
-                                                                            </>
-                                                                        )}
-                                                                    </div>
+                                                                    ) : (
+                                                                        <span className="text-xl font-black text-primary">{order.total_amount.toLocaleString()}원</span>
+                                                                    )}
                                                                 </div>
                                                             </div>
-                                                        </motion.div>
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </AnimatePresence>
-                                    </React.Fragment>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+
+                                                            <div className="space-y-4">
+                                                                <h3 className="font-bold flex items-center gap-2 text-text-muted"><ChevronRight size={18} /> 고객 선택 정보</h3>
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                                                    {getDisplayFields(order).map((f: any, i: number) => (
+                                                                        <div key={i} className="glass p-3 space-y-1">
+                                                                            <div className="text-[10px] font-bold text-text-muted uppercase">{f.label}</div>
+                                                                            <div className="text-sm font-bold">{f.value}</div>
+                                                                        </div>
+                                                                    ))}
+                                                                    {order.request_note && (
+                                                                        <div className="col-span-full glass p-3 border-l-2 border-l-amber-400">
+                                                                            <div className="text-[10px] font-bold text-amber-400 uppercase">요청 사항</div>
+                                                                            <div className="text-sm">{order.request_note}</div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-6">
+                                                            <div className="space-y-2">
+                                                                <h3 className="font-bold flex items-center gap-2"><Edit className="text-primary" size={18} /> 관리자 메모</h3>
+                                                                <textarea
+                                                                    className="input-field min-h-[150px] py-4 text-sm"
+                                                                    placeholder="사장님만 볼 수 있는 메모..."
+                                                                    value={currentRemarks}
+                                                                    onChange={(e) => setCurrentRemarks(e.target.value)}
+                                                                />
+                                                            </div>
+
+                                                            <div className="grid gap-3">
+                                                                {isEditMode ? (
+                                                                    <>
+                                                                        <button onClick={saveChanges} className="btn btn-primary w-full py-4 shadow-xl shadow-primary/20"><Save size={18} /> 수정 내용 저장</button>
+                                                                        <button onClick={() => setIsEditMode(false)} className="btn w-full py-4 bg-white/5 hover:bg-white/10">취소</button>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        {order.status !== '완료' && (
+                                                                            <button
+                                                                                onClick={() => handleStatusChange(order, '완료')}
+                                                                                className="btn w-full py-4 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-white transition-all shadow-xl shadow-emerald-500/10"
+                                                                            >
+                                                                                <CheckCircle2 size={18} /> 처리 완료 및 저장
+                                                                            </button>
+                                                                        )}
+                                                                        <div className="grid grid-cols-2 gap-3">
+                                                                            <button onClick={() => handleStatusChange(order, '확인')} className="btn py-4 bg-white/5 border border-white/5 text-xs">확인 중으로</button>
+                                                                            <button onClick={() => handleStatusChange(order, '취소')} className="btn py-4 bg-red-400/10 text-red-400 border border-red-400/20 text-xs hover:bg-red-400 hover:text-white transition-all">주문 취소</button>
+                                                                        </div>
+                                                                        {(['신규', 'Pending', 'pending'].includes(order.status)) && (
+                                                                            <button
+                                                                                onClick={async (e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (confirm('정말로 이 주문을 완전히 삭제하시겠습니까?\n삭제된 주문은 복구할 수 없습니다.')) {
+                                                                                        await deleteOrder(order.id);
+                                                                                        setExpandedOrderId(null);
+                                                                                    }
+                                                                                }}
+                                                                                className="btn w-full py-3 bg-red-500/5 text-red-500/50 hover:bg-red-500 hover:text-white border border-red-500/10 text-xs flex items-center justify-center gap-2 mt-2"
+                                                                            >
+                                                                                <Trash2 size={14} /> 주문 영구 삭제
+                                                                            </button>
+                                                                        )}
+                                                                        {order.status === '완료' && (
+                                                                            <button onClick={saveChanges} className="btn w-full py-4 bg-primary/10 text-primary border border-primary/20"><Save size={18} /> 메모만 수정 저장</button>
+                                                                        )}
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            </div>
+                                        )}
+                                    </AnimatePresence>
+                                </React.Fragment>
+                            ))
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

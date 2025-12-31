@@ -234,9 +234,9 @@ const InventoryCheckPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Main Table */}
+            {/* Main Content */}
             <div className="glass overflow-hidden">
-                <div className="p-6 border-b border-white/5 flex justify-between items-center">
+                <div className="p-4 md:p-6 border-b border-white/5 flex flex-col md:flex-row justify-between items-center gap-2">
                     <h3 className="font-bold flex items-center gap-2">
                         <Package className="text-primary" size={18} /> 실사 대상 원재료 목록
                     </h3>
@@ -245,7 +245,67 @@ const InventoryCheckPage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
+                {/* Mobile Card View */}
+                <div className="md:hidden divide-y divide-white/5">
+                    {auditList.filter(i => i.name.includes(searchQuery)).map(item => (
+                        <div key={item.id} className="p-5 space-y-4 bg-transparent">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <div className="font-bold text-lg text-white">{item.name}</div>
+                                    <div className="text-xs text-text-muted">{item.cost_price.toLocaleString()}원 / Unit</div>
+                                </div>
+                                <div className={`text-sm font-bold ${item.diff_qty < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                                    {item.diff_qty > 0 ? '+' : ''}{item.diff_qty.toLocaleString()} Diff
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-text-muted uppercase">전산 재고 (System)</label>
+                                    <div className="p-2 bg-white/5 rounded text-sm font-bold text-primary">
+                                        {item.system_stock.toLocaleString()}
+                                    </div>
+                                    <div className="text-[10px] text-text-muted flex justify-between">
+                                        <span>기초: {item.prev_stock}</span>
+                                        <span>소비: {item.out_qty}</span>
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-text-muted uppercase text-emerald-400">실재고 입력 (Actual)</label>
+                                    <input
+                                        type="number"
+                                        className="w-full bg-emerald-500/10 border border-emerald-500/30 rounded p-2 text-right font-bold text-white outline-none focus:ring-2 ring-emerald-500/50"
+                                        placeholder="실사량"
+                                        value={item.actual_stock}
+                                        onChange={(e) => handleInput(item.id, 'actual_stock', e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 pt-2 border-t border-white/5">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs text-text-muted">구매량(입고)</span>
+                                    <input
+                                        type="number"
+                                        className="w-20 bg-white/5 border border-white/10 rounded px-2 py-1 text-right outline-none focus:border-primary text-white text-sm"
+                                        placeholder="0"
+                                        value={item.in_qty === 0 && !inputs[item.id]?.in_qty ? '' : item.in_qty}
+                                        onChange={(e) => handleInput(item.id, 'in_qty', e.target.value)}
+                                    />
+                                </div>
+                                <div className="flex items-center justify-end gap-2">
+                                    <span className="text-xs text-text-muted">손실액:</span>
+                                    <span className="font-mono font-bold text-sm">
+                                        {item.diff_qty !== 0 ? Math.round(item.diff_qty * item.cost_price).toLocaleString() : '0'}원
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-left text-sm">
                         <thead>
                             <tr className="bg-white/[0.02] text-xs font-black text-text-muted uppercase tracking-widest border-b border-white/5">

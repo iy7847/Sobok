@@ -308,9 +308,9 @@ const ProfitPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Detailed Analysis Table */}
+            {/* Detailed Analysis List */}
             <div className="glass overflow-hidden">
-                <div className="p-6 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="p-4 md:p-6 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <h3 className="font-bold flex items-center gap-2 text-white">
                         <TrendingUp size={18} className="text-primary" />
                         제품별 수익성 상세 분석
@@ -320,53 +320,79 @@ const ProfitPage: React.FC = () => {
                         운영비는 {allocationMethod === 'Quantity' ? '판매량' : '매출액'} 기준 {(totals.fixed).toLocaleString()}원이 배분되었습니다.
                     </div>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="bg-white/[0.02] text-[10px] font-black text-text-muted uppercase tracking-widest">
-                                <th className="px-6 py-4">제품명</th>
-                                <th className="px-6 py-4 text-center">판매량</th>
-                                <th className="px-6 py-4 text-right">매출액</th>
-                                <th className="px-6 py-4 text-right">재료비(총)</th>
-                                <th className="px-6 py-4 text-right">운영비 배분</th>
-                                <th className="px-6 py-4 text-right bg-white/5">단가 원가</th>
-                                <th className="px-6 py-4 text-right">개당 마진</th>
-                                <th className="px-6 py-4 text-center">마진율</th>
-                                <th className="px-6 py-4 text-right">순수익 기여</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                            {analysis.length === 0 ? (
-                                <tr>
-                                    <td colSpan={9} className="py-20 text-center text-text-muted italic">분석할 데이터가 없습니다.</td>
-                                </tr>
-                            ) : (
-                                analysis.map((p, idx) => (
-                                    <tr key={idx} className="group hover:bg-white/[0.02] transition-all">
-                                        <td className="px-6 py-5 font-bold text-white">{p.name}</td>
-                                        <td className="px-6 py-5 text-center font-bold text-lg">{p.sales_count.toLocaleString()}</td>
-                                        <td className="px-6 py-5 text-right text-text-muted">{p.total_revenue.toLocaleString()}</td>
-                                        <td className="px-6 py-5 text-right text-text-muted">{p.total_variable_cost.toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-right text-primary/70">{p.allocated_fixed_cost.toLocaleString()}</td>
-                                        <td className="px-6 py-4 text-right bg-white/5 font-mono font-bold">
-                                            {(p.unit_variable_cost + (p.sales_count > 0 ? p.allocated_fixed_cost / p.sales_count : 0)).toLocaleString()}원
-                                        </td>
-                                        <td className={`px-6 py-4 text-right font-bold ${p.total_profit / p.sales_count >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                            {p.sales_count > 0 ? (p.total_profit / p.sales_count).toLocaleString() : 0}원
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className={`px-2 py-1 rounded-lg text-[10px] font-black ${p.margin_rate >= 30 ? 'bg-emerald-500/20 text-emerald-400' : p.margin_rate >= 15 ? 'bg-primary/20 text-primary' : 'bg-amber-400/20 text-amber-400'}`}>
-                                                {p.margin_rate.toFixed(1)}%
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-5 text-right font-black text-lg text-white">
-                                            {p.total_profit.toLocaleString()}
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+
+                {/* Desktop Table Header */}
+                <div className="hidden md:grid grid-cols-[2fr_1fr_1.5fr_1.5fr_1.5fr_1.5fr_1.5fr_1fr_1.5fr] text-right gap-4 px-6 py-4 bg-white/[0.02] text-[10px] font-black text-text-muted uppercase tracking-widest">
+                    <div className="text-left">제품명</div>
+                    <div className="text-center">판매량</div>
+                    <div>매출액</div>
+                    <div>재료비(총)</div>
+                    <div>운영비 배분</div>
+                    <div className="bg-white/5 pr-2">단가 원가</div>
+                    <div>개당 마진</div>
+                    <div className="text-center">마진율</div>
+                    <div>순수익 기여</div>
+                </div>
+
+                <div className="divide-y divide-white/5">
+                    {analysis.length === 0 ? (
+                        <div className="py-20 text-center text-text-muted italic">분석할 데이터가 없습니다.</div>
+                    ) : (
+                        analysis.map((p, idx) => (
+                            <React.Fragment key={idx}>
+                                {/* Mobile Card View */}
+                                <div className="md:hidden p-5 space-y-4 hover:bg-white/[0.02] transition-colors">
+                                    <div className="flex justify-between items-start">
+                                        <div className="font-bold text-lg text-white">{p.name}</div>
+                                        <span className={`px-2 py-1 rounded-lg text-xs font-black ${p.margin_rate >= 30 ? 'bg-emerald-500/20 text-emerald-400' : p.margin_rate >= 15 ? 'bg-primary/20 text-primary' : 'bg-amber-400/20 text-amber-400'}`}>
+                                            {p.margin_rate.toFixed(1)}%
+                                        </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="bg-white/5 p-3 rounded-lg space-y-1">
+                                            <div className="text-[10px] text-text-muted uppercase">매출액</div>
+                                            <div className="font-bold">{p.total_revenue.toLocaleString()}원</div>
+                                            <div className="text-[10px] text-text-muted">({p.sales_count.toLocaleString()}개 판매)</div>
+                                        </div>
+                                        <div className={`p-3 rounded-lg space-y-1 ${p.total_profit >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
+                                            <div className={`text-[10px] uppercase font-bold ${p.total_profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>순수익</div>
+                                            <div className={`font-bold ${p.total_profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{p.total_profit.toLocaleString()}원</div>
+                                            <div className="text-[10px] opacity-70">개당 {(p.sales_count > 0 ? (p.total_profit / p.sales_count) : 0).toLocaleString()}원</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="text-xs text-text-muted flex justify-between px-1">
+                                        <span>재료비: {p.total_variable_cost.toLocaleString()}원</span>
+                                        <span>운영비(배분): {p.allocated_fixed_cost.toLocaleString()}원</span>
+                                    </div>
+                                </div>
+
+                                {/* Desktop Table Row */}
+                                <div className="hidden md:grid grid-cols-[2fr_1fr_1.5fr_1.5fr_1.5fr_1.5fr_1.5fr_1fr_1.5fr] text-right gap-4 px-6 py-5 items-center hover:bg-white/[0.02] transition-colors">
+                                    <div className="text-left font-bold text-white">{p.name}</div>
+                                    <div className="text-center font-bold text-lg">{p.sales_count.toLocaleString()}</div>
+                                    <div className="text-text-muted">{p.total_revenue.toLocaleString()}</div>
+                                    <div className="text-text-muted">{p.total_variable_cost.toLocaleString()}</div>
+                                    <div className="text-primary/70">{p.allocated_fixed_cost.toLocaleString()}</div>
+                                    <div className="bg-white/5 font-mono font-bold pr-2">
+                                        {(p.unit_variable_cost + (p.sales_count > 0 ? p.allocated_fixed_cost / p.sales_count : 0)).toLocaleString()}원
+                                    </div>
+                                    <div className={`font-bold ${p.total_profit / p.sales_count >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {p.sales_count > 0 ? (p.total_profit / p.sales_count).toLocaleString() : 0}원
+                                    </div>
+                                    <div className="text-center">
+                                        <span className={`px-2 py-1 rounded-lg text-[10px] font-black ${p.margin_rate >= 30 ? 'bg-emerald-500/20 text-emerald-400' : p.margin_rate >= 15 ? 'bg-primary/20 text-primary' : 'bg-amber-400/20 text-amber-400'}`}>
+                                            {p.margin_rate.toFixed(1)}%
+                                        </span>
+                                    </div>
+                                    <div className="font-black text-lg text-white">
+                                        {p.total_profit.toLocaleString()}
+                                    </div>
+                                </div>
+                            </React.Fragment>
+                        ))
+                    )}
                 </div>
             </div>
 

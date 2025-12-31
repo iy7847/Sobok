@@ -52,9 +52,9 @@ const Dashboard: React.FC = () => {
     ];
 
     return (
-        <div className="max-w-6xl mx-auto space-y-12 pb-20">
+        <div className="max-w-6xl mx-auto space-y-8 md:space-y-12 pb-20">
             {/* Hero Section */}
-            <section className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary/20 to-transparent p-12 lg:p-20 border border-white/5">
+            <section className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary/20 to-transparent p-8 md:p-12 lg:p-20 border border-white/5">
                 <div className="relative z-10 max-w-2xl space-y-6">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -67,7 +67,7 @@ const Dashboard: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
-                        className="text-6xl font-black text-white leading-tight"
+                        className="text-4xl md:text-6xl font-black text-white leading-tight"
                     >
                         소복, 복잡함은 덜고 <br />
                         <span className="text-primary italic">이익은 채우고</span>
@@ -99,7 +99,7 @@ const Dashboard: React.FC = () => {
                     >
                         <Link
                             to={card.link}
-                            className="glass group block h-full p-8 space-y-6 hover:border-primary/30 transition-all duration-500"
+                            className="glass group block h-full p-6 md:p-8 space-y-6 hover:border-primary/30 transition-all duration-500"
                         >
                             <div className="flex justify-between items-start">
                                 <div className={`p-4 rounded-2xl ${card.color} bg-opacity-10 shadow-inner group-hover:scale-110 transition-transform duration-500`}>
@@ -116,7 +116,7 @@ const Dashboard: React.FC = () => {
                                 {loading ? (
                                     <div className="h-12 w-20 bg-white/5 animate-pulse rounded-xl" />
                                 ) : (
-                                    <h2 className="text-5xl font-black text-white tracking-tighter">
+                                    <h2 className="text-4xl md:text-5xl font-black text-white tracking-tighter">
                                         {card.value}
                                     </h2>
                                 )}
@@ -137,7 +137,7 @@ const Dashboard: React.FC = () => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.8 }}
-                    className="glass p-10 space-y-6 bg-gradient-to-br from-white/5 to-transparent"
+                    className="glass p-6 md:p-10 space-y-6 bg-gradient-to-br from-white/5 to-transparent"
                 >
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-primary/20 rounded-2xl text-primary"><TrendingUp size={24} /></div>
@@ -157,7 +157,7 @@ const Dashboard: React.FC = () => {
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.9 }}
-                    className="glass p-10 space-y-6 bg-gradient-to-br from-emerald-500/5 to-transparent border-emerald-500/10"
+                    className="glass p-6 md:p-10 space-y-6 bg-gradient-to-br from-emerald-500/5 to-transparent border-emerald-500/10"
                 >
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-emerald-500/20 rounded-2xl text-emerald-400"><Clock size={24} /></div>

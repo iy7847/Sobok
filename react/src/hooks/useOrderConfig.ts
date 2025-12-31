@@ -94,6 +94,7 @@ export const useOrderConfig = () => {
         addElement,
         removeElement,
         updateElement,
-        moveElement
+        moveElement,
+        setElements
     };
 };
