@@ -56,7 +56,7 @@ const OrdersPage: React.FC = () => {
         loadData();
     }, [loadData]);
 
-    const shopLink = user ? `${window.location.origin}/shop/${user.id}?v=${new Date().getTime()}` : '';
+    const shopLink = user ? `${window.location.origin}${import.meta.env.BASE_URL}shop/${user.id}?v=${new Date().getTime()}` : '';
 
     const handleCopyLink = () => {
         navigator.clipboard.writeText(shopLink);

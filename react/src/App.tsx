@@ -42,7 +42,7 @@ function App() {
 
   return (
     <AuthProvider>
-      <Router>
+      <Router basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/shop/:shopId" element={<ShopPage />} />
