@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Sidebar from './components/layout/Sidebar';
 import LoginPage from './pages/Login';
+import AppInstallGuidePage from './pages/AppInstallGuide';
 import ItemsPage from './pages/Items';
 import BOMDetailPage from './pages/BOMDetail';
 import OrdersPage from './pages/Orders';
@@ -45,6 +46,7 @@ function App() {
       <Router basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/install-guide" element={<AppInstallGuidePage />} />
           <Route path="/shop/:shopId" element={<ShopPage />} />
 
           <Route path="/*" element={

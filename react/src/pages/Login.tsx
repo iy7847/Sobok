@@ -137,7 +137,7 @@ const LoginPage: React.FC = () => {
                     </div>
 
                     {/* Toggle Switch */}
-                    <div className="flex bg-black/20 rounded-lg p-1 mb-8 relative">
+                    <div className="flex bg-black/20 rounded-lg p-1 mb-6 relative">
                         <div
                             className="absolute bg-indigo-600 rounded-md h-[calc(100%-8px)] transition-all duration-300 ease-out"
                             style={{
@@ -156,6 +156,17 @@ const LoginPage: React.FC = () => {
                             className={`flex-1 py-2 text-sm font-medium rounded-md relative z-10 transition-colors duration-300 ${!isLoginMode ? 'text-white' : 'text-gray-400 hover:text-gray-200'}`}
                         >
                             회원가입
+                        </button>
+                    </div>
+
+                    {/* App Install Button */}
+                    <div className="flex justify-end mb-6">
+                        <button
+                            onClick={() => navigate('/install-guide')}
+                            className="text-xs text-gray-400 hover:text-indigo-400 transition-colors flex items-center space-x-1"
+                        >
+                            <span className="border-b border-gray-600 hover:border-indigo-400 pb-0.5 transition-colors">앱 설치 방법</span>
+                            <ArrowRight className="w-3 h-3" />
                         </button>
                     </div>
 
