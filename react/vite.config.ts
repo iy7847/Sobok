@@ -20,8 +20,8 @@ export default defineConfig({
         theme_color: '#10b981',
         background_color: '#10172a',
         display: 'standalone',
-        scope: '/',
-        start_url: '/',
+        scope: '/Sobok/',
+        start_url: '/Sobok/',
         icons: [
           {
             src: 'pwa-192x192.png',
