@@ -10,7 +10,8 @@ import {
     ChevronDown,
     Check,
     Package,
-    Upload
+    Upload,
+    Info
 } from 'lucide-react';
 import { compressImage } from '../utils/image';
 
@@ -439,10 +440,28 @@ const ShopPage: React.FC = () => {
                                                     if (file) {
                                                         try {
                                                             const compressed = await compressImage(file, 1024, 0.8);
-                                                            handleInputChange(el.id, compressed);
+                                                            // Convert base64 to blob
+                                                            const res = await fetch(compressed);
+                                                            const blob = await res.blob();
+                                                            const fileName = `${shopId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+
+                                                            const { data, error } = await supabase.storage
+                                                                .from('order-images')
+                                                                .upload(fileName, blob, {
+                                                                    contentType: 'image/jpeg',
+                                                                    upsert: true
+                                                                });
+
+                                                            if (error) throw error;
+
+                                                            const { data: { publicUrl } } = supabase.storage
+                                                                .from('order-images')
+                                                                .getPublicUrl(fileName);
+
+                                                            handleInputChange(el.id, publicUrl);
                                                         } catch (err) {
                                                             console.error(err);
-                                                            alert('이미지 처리 실패');
+                                                            alert('이미지 업로드 실패: ' + (err as any).message);
                                                         }
                                                     }
                                                 }}
@@ -455,6 +474,10 @@ const ShopPage: React.FC = () => {
                                                 <p className="text-sm font-bold">사진 첨부하기</p>
                                                 <p className="text-xs opacity-70">클릭하여 이미지를 선택하세요</p>
                                             </div>
+                                            <div className="absolute bottom-2 right-2 flex items-center gap-1 text-[10px] text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded font-bold">
+                                                <AlertCircle size={10} />
+                                                <span>Max 5MB</span>
+                                            </div>
                                             <input
                                                 type="file"
                                                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
@@ -464,10 +487,28 @@ const ShopPage: React.FC = () => {
                                                     if (file) {
                                                         try {
                                                             const compressed = await compressImage(file, 1024, 0.8);
-                                                            handleInputChange(el.id, compressed);
+                                                            // Convert base64 to blob
+                                                            const res = await fetch(compressed);
+                                                            const blob = await res.blob();
+                                                            const fileName = `${shopId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+
+                                                            const { data, error } = await supabase.storage
+                                                                .from('order-images')
+                                                                .upload(fileName, blob, {
+                                                                    contentType: 'image/jpeg',
+                                                                    upsert: true
+                                                                });
+
+                                                            if (error) throw error;
+
+                                                            const { data: { publicUrl } } = supabase.storage
+                                                                .from('order-images')
+                                                                .getPublicUrl(fileName);
+
+                                                            handleInputChange(el.id, publicUrl);
                                                         } catch (err) {
                                                             console.error(err);
-                                                            alert('이미지 처리 실패');
+                                                            alert('이미지 업로드 실패: ' + (err as any).message);
                                                         }
                                                     }
                                                 }}
@@ -516,6 +557,16 @@ const ShopPage: React.FC = () => {
                             </div>
                         </div>
                     </div>
+
+                    {formElements.some(el => el.type === 'FileUpload') && (
+                        <div className="p-4 bg-orange-50 text-orange-700 text-xs rounded-lg flex items-start gap-2 border border-orange-100">
+                            <Info size={14} className="mt-0.5 shrink-0" />
+                            <p>
+                                <strong>안내:</strong> 첨부 파일은 주문 완료 후 최대 <strong>3개월간 보관</strong>되며 이후 자동 삭제될 수 있습니다. 중요한 파일은 별도로 보관해주세요.
+                                <br />또한, 서버 성능 유지를 위해 <strong>최대 5개</strong>의 사진만 첨부 가능합니다.
+                            </p>
+                        </div>
+                    )}
 
                     <div className="p-6 sticky bottom-6 border border-emerald-500/30 bg-white/90 backdrop-blur shadow-2xl rounded-xl">
                         <div className="flex justify-between items-center mb-4">

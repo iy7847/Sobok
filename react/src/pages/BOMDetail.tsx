@@ -115,14 +115,19 @@ const BOMDetailPage: React.FC = () => {
         setSearchQuery('');
     };
 
-    const handleRemoveIngredient = (index: number) => {
-        const newList = [...bomList];
-        if (newList[index].isNew) {
-            newList.splice(index, 1);
-        } else {
-            newList[index].isDeleted = true;
-        }
-        setBomList(newList);
+    const handleRemoveIngredient = (childItemId: number) => {
+        setBomList(prev => {
+            const newList = [...prev];
+            const index = newList.findIndex(b => b.child_item_id === childItemId);
+            if (index === -1) return prev;
+
+            if (newList[index].isNew) {
+                newList.splice(index, 1);
+            } else {
+                newList[index] = { ...newList[index], isDeleted: true };
+            }
+            return newList;
+        });
     };
 
     const calculateTotalCost = () => {
@@ -305,7 +310,8 @@ const BOMDetailPage: React.FC = () => {
                             </button>
                         </div>
 
-                        <div className="overflow-x-auto">
+                        {/* Desktop View: Table */}
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="w-full text-left">
                                 <thead>
                                     <tr className="text-[10px] font-black text-text-muted uppercase tracking-widest border-b border-white/5">
@@ -317,8 +323,8 @@ const BOMDetailPage: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5">
-                                    {bomList.filter(b => !b.isDeleted).map((bom, idx) => (
-                                        <motion.tr layout key={idx} className="group hover:bg-white/[0.01]">
+                                    {bomList.filter(b => !b.isDeleted).map((bom) => (
+                                        <motion.tr layout key={bom.child_item_id} className="group hover:bg-white/[0.01]">
                                             <td className="px-6 py-4">
                                                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${bom.child_item?.type === 'Component' ? 'text-amber-400 border-amber-400/20 bg-amber-400/5' : 'text-blue-400 border-blue-400/20 bg-blue-400/5'}`}>
                                                     {bom.child_item?.type === 'Component' ? '반제품' : '원자재'}
@@ -338,14 +344,15 @@ const BOMDetailPage: React.FC = () => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <input
-                                                    type="number"
-                                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-center font-mono text-sm focus:border-primary outline-none transition-all"
-                                                    value={bom.quantity}
-                                                    onChange={(e) => {
-                                                        const newList = [...bomList];
-                                                        newList[newList.indexOf(bom)].quantity = Number(e.target.value);
-                                                        setBomList(newList);
+                                                <NumberInput
+                                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-right font-mono text-sm focus:border-primary outline-none transition-all"
+                                                    value={bom.quantity || 0}
+                                                    onChange={(val) => {
+                                                        setBomList(prev => prev.map(item =>
+                                                            item.child_item_id === bom.child_item_id
+                                                                ? { ...item, quantity: val }
+                                                                : item
+                                                        ));
                                                     }}
                                                 />
                                             </td>
@@ -353,7 +360,7 @@ const BOMDetailPage: React.FC = () => {
                                                 {((bom.child_item?.cost_price || 0) * (bom.quantity || 0)).toLocaleString()}원
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <button onClick={() => handleRemoveIngredient(idx)} className="p-2 text-text-muted hover:text-red-400 transition-colors">
+                                                <button onClick={() => handleRemoveIngredient(bom.child_item_id!)} className="p-2 text-text-muted hover:text-red-400 transition-colors">
                                                     <Trash2 size={16} />
                                                 </button>
                                             </td>
@@ -375,6 +382,72 @@ const BOMDetailPage: React.FC = () => {
                                     </tr>
                                 </tfoot>
                             </table>
+                        </div>
+
+                        {/* Mobile View: Card List */}
+                        <div className="md:hidden">
+                            <div className="divide-y divide-white/5">
+                                {bomList.filter(b => !b.isDeleted).map((bom) => (
+                                    <div key={bom.child_item_id} className="p-4 space-y-4">
+                                        <div className="flex justify-between items-start">
+                                            <div className="space-y-1">
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${bom.child_item?.type === 'Component' ? 'text-amber-400 border-amber-400/20 bg-amber-400/5' : 'text-blue-400 border-blue-400/20 bg-blue-400/5'}`}>
+                                                    {bom.child_item?.type === 'Component' ? '반제품' : '원자재'}
+                                                </span>
+                                                <div className="font-bold text-sm pt-1">
+                                                    {bom.child_item?.name}
+                                                </div>
+                                            </div>
+                                            <button onClick={() => handleRemoveIngredient(bom.child_item_id!)} className="p-2 -mr-2 text-text-muted hover:text-red-400 transition-colors">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4 bg-white/5 rounded-xl p-3">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-text-muted">단가</label>
+                                                <div className="text-sm font-mono text-text-muted">
+                                                    {bom.child_item?.cost_price?.toLocaleString() || 0}원
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-text-muted">계산 원가</label>
+                                                <div className="text-sm font-mono font-bold text-primary">
+                                                    {((bom.child_item?.cost_price || 0) * (bom.quantity || 0)).toLocaleString()}원
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-3">
+                                            <label className="text-xs font-bold text-text-muted shrink-0">소요량 입력</label>
+                                            <NumberInput
+                                                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-right font-mono text-sm focus:border-primary outline-none transition-all"
+                                                value={bom.quantity || 0}
+                                                onChange={(val) => {
+                                                    setBomList(prev => prev.map(item =>
+                                                        item.child_item_id === bom.child_item_id
+                                                            ? { ...item, quantity: val }
+                                                            : item
+                                                    ));
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                                {bomList.filter(b => !b.isDeleted).length === 0 && (
+                                    <div className="py-12 text-center text-text-muted italic text-sm">
+                                        구성된 재료가 없습니다.<br />위쪽에서 재료를 추가해 주세요.
+                                    </div>
+                                )}
+                            </div>
+                            <div className="bg-primary/5 p-4 border-t border-white/5">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-bold">총 합계</span>
+                                    <span className="text-xl font-black text-primary">
+                                        {calculateTotalCost().toLocaleString()}원
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

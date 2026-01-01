@@ -59,6 +59,14 @@ export const useOrderConfig = () => {
     };
 
     const addElement = (type: string, label: string) => {
+        if (type === 'FileUpload') {
+            const fileUploadCount = elements.filter(e => e.type === 'FileUpload').length;
+            if (fileUploadCount >= 5) {
+                alert('사진 첨부 항목은 최대 5개까지만 추가할 수 있습니다.\n(서버 용량 및 성능 최적화를 위한 제한입니다)');
+                return;
+            }
+        }
+
         const newElement: FormElement = {
             id: Date.now().toString(),
             type,

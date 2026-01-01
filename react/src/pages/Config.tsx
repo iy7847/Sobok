@@ -32,23 +32,44 @@ interface ConfigItemProps {
     updateElement: (id: string, updates: Partial<FormElement>) => void;
     removeElement: (id: string) => void;
     moveElement: (from: number, to: number) => void;
+    user: any;
 }
 
 import { compressImage } from '../utils/image';
+import { supabase } from '../services/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
-const ConfigItem = ({ item, index, totalCount, updateElement, removeElement, moveElement }: ConfigItemProps) => {
+const ConfigItem = ({ item, index, totalCount, updateElement, removeElement, moveElement, user }: ConfigItemProps) => {
     const controls = useDragControls();
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, id: string) => {
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file || !user) return;
 
         try {
-            const compressedDataUrl = await compressImage(file, 800, 0.7);
-            updateElement(id, { options: compressedDataUrl });
+            const compressed = await compressImage(file, 800, 0.7);
+            // Convert base64 to blob
+            const res = await fetch(compressed);
+            const blob = await res.blob();
+            const fileName = `${user.id}/banner_${id}_${Date.now()}.jpg`;
+
+            const { data, error } = await supabase.storage
+                .from('shop-assets')
+                .upload(fileName, blob, {
+                    contentType: 'image/jpeg',
+                    upsert: true
+                });
+
+            if (error) throw error;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('shop-assets')
+                .getPublicUrl(fileName);
+
+            updateElement(id, { options: publicUrl });
         } catch (error) {
             console.error('Image compression failed:', error);
-            alert('이미지 처리 중 오류가 발생했습니다.');
+            alert('이미지 처리 중 오류가 발생했습니다: ' + (error as any).message);
         }
     };
 
@@ -192,6 +213,7 @@ const ConfigItem = ({ item, index, totalCount, updateElement, removeElement, mov
 };
 
 const ConfigPage: React.FC = () => {
+    const { user } = useAuth();
     const {
         loading,
         elements,
@@ -212,17 +234,34 @@ const ConfigPage: React.FC = () => {
 
     const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file || !user) return;
 
         try {
-            const compressedDataUrl = await compressImage(file, 800, 0.7);
+            const compressed = await compressImage(file, 800, 0.7);
+            // Convert base64 to blob
+            const res = await fetch(compressed);
+            const blob = await res.blob();
+            const fileName = `${user.id}/logo_${Date.now()}.jpg`;
+
+            const { data, error } = await supabase.storage
+                .from('shop-assets')
+                .upload(fileName, blob, {
+                    contentType: 'image/jpeg',
+                    upsert: true
+                });
+
+            if (error) throw error;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('shop-assets')
+                .getPublicUrl(fileName);
 
             // Check if ShopLogo already exists
             const existingLogo = elements.find(el => el.type === 'ShopLogo');
 
             if (existingLogo) {
                 // Update existing
-                updateElement(existingLogo.id, { options: compressedDataUrl });
+                updateElement(existingLogo.id, { options: publicUrl });
             } else {
                 // Create new
                 const newLogo: FormElement = {
@@ -230,13 +269,13 @@ const ConfigPage: React.FC = () => {
                     type: 'ShopLogo',
                     label: '상점 로고',
                     required: false,
-                    options: compressedDataUrl
+                    options: publicUrl
                 };
                 setElements(prev => [...prev, newLogo]);
             }
         } catch (error) {
             console.error('Logo upload failed:', error);
-            alert('이미지 처리 중 오류가 발생했습니다.');
+            alert('이미지 처리 중 오류가 발생했습니다: ' + (error as any).message);
         }
     };
 
@@ -338,6 +377,7 @@ const ConfigPage: React.FC = () => {
                                     updateElement={updateElement}
                                     removeElement={removeElement}
                                     moveElement={moveElement}
+                                    user={user}
                                 />
                             ))}
                         </Reorder.Group>
@@ -374,7 +414,10 @@ const ConfigPage: React.FC = () => {
                                     <button onClick={() => addElement('Text', '텍스트 입력')} className={toolboxButtonClass}><Type size={16} /> 텍스트 (한 줄)</button>
                                     <button onClick={() => addElement('TextArea', '상세 내용 입력')} className={toolboxButtonClass}><AlignLeft size={16} /> 텍스트 (여러 줄)</button>
                                     <button onClick={() => addElement('Date', '날짜 선택')} className={toolboxButtonClass}><Calendar size={16} /> 날짜 선택</button>
-                                    <button onClick={() => addElement('FileUpload', '사진 첨부')} className={toolboxButtonClass}><Upload size={16} /> 사진 첨부</button>
+                                    <div className="relative">
+                                        <button onClick={() => addElement('FileUpload', '사진 첨부')} className={toolboxButtonClass}><Upload size={16} /> 사진 첨부 (최대 5개)</button>
+                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-orange-500 font-bold bg-orange-50 px-1.5 py-0.5 rounded">Limit 5</span>
+                                    </div>
                                 </div>
                             </div>
 
