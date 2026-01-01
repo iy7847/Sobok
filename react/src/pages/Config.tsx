@@ -53,7 +53,7 @@ const ConfigItem = ({ item, index, totalCount, updateElement, removeElement, mov
             const blob = await res.blob();
             const fileName = `${user.id}/banner_${id}_${Date.now()}.jpg`;
 
-            const { data, error } = await supabase.storage
+            const { error } = await supabase.storage
                 .from('shop-assets')
                 .upload(fileName, blob, {
                     contentType: 'image/jpeg',
@@ -243,7 +243,7 @@ const ConfigPage: React.FC = () => {
             const blob = await res.blob();
             const fileName = `${user.id}/logo_${Date.now()}.jpg`;
 
-            const { data, error } = await supabase.storage
+            const { error } = await supabase.storage
                 .from('shop-assets')
                 .upload(fileName, blob, {
                     contentType: 'image/jpeg',

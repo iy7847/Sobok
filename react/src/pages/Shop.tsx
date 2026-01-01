@@ -445,7 +445,7 @@ const ShopPage: React.FC = () => {
                                                             const blob = await res.blob();
                                                             const fileName = `${shopId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
 
-                                                            const { data, error } = await supabase.storage
+                                                            const { error } = await supabase.storage
                                                                 .from('order-images')
                                                                 .upload(fileName, blob, {
                                                                     contentType: 'image/jpeg',
@@ -492,7 +492,7 @@ const ShopPage: React.FC = () => {
                                                             const blob = await res.blob();
                                                             const fileName = `${shopId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
 
-                                                            const { data, error } = await supabase.storage
+                                                            const { error } = await supabase.storage
                                                                 .from('order-images')
                                                                 .upload(fileName, blob, {
                                                                     contentType: 'image/jpeg',
