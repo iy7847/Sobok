@@ -11,8 +11,7 @@ import {
     Clock,
     Edit2,
     X,
-    Check,
-    Clipboard
+    Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Expense, FixedCost } from '../types';
