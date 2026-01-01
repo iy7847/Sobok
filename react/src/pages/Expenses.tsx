@@ -11,10 +11,16 @@ import {
     Clock,
     Edit2,
     X,
-    Check
+    Check,
+    Clipboard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Expense, FixedCost } from '../types';
+import Button from '../components/ui/Button';
+import { NumberInput } from '../components/common/NumberInput';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
+import Card from '../components/ui/Card';
 
 const ExpensesPage: React.FC = () => {
     const {
@@ -102,39 +108,41 @@ const ExpensesPage: React.FC = () => {
         <div className="max-w-6xl mx-auto space-y-8 pb-20">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
-                    <h1 className="text-4xl font-black mb-2 flex items-center gap-3 text-white">
+                    <h1 className="text-4xl font-black mb-2 flex items-center gap-3 text-text-main">
                         <Receipt className="text-primary" size={40} />
                         지출 내역 관리
                     </h1>
                     <p className="text-text-muted font-medium">비즈니스 운영을 위해 투입된 비용을 꼼꼼하게 기록하세요.</p>
                 </div>
 
-                <div className="flex p-1 bg-white/5 rounded-2xl">
-                    <button
+                <div className="flex gap-2 p-1 bg-gray-100 dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/5">
+                    <Button
+                        variant="secondary"
                         onClick={() => setActiveTab('History')}
-                        className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'History' ? 'bg-primary text-white shadow-lg' : 'text-text-muted hover:text-white'}`}
+                        isSelected={activeTab === 'History'}
                     >
                         지출 내역
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        variant="secondary"
                         onClick={() => setActiveTab('Templates')}
-                        className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeTab === 'Templates' ? 'bg-white/10 text-white shadow-lg' : 'text-text-muted hover:text-white'}`}
+                        isSelected={activeTab === 'Templates'}
                     >
                         고정비 설정
-                    </button>
+                    </Button>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Summary Card */}
                 <div className="lg:col-span-4 space-y-6">
-                    <div className="glass p-6 md:p-8 space-y-4 border-l-4 border-l-primary bg-primary/5">
+                    <Card variant="glass" className="space-y-4 border-l-4 border-l-primary bg-primary/5">
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-xs font-black text-primary uppercase tracking-widest mb-1">
                                     {activeTab === 'History' ? `${selectedMonth} 총 지출` : '월 예상 총 고정비'}
                                 </p>
-                                <h2 className="text-4xl font-black text-white">
+                                <h2 className="text-4xl font-black text-text-main">
                                     {(activeTab === 'History' ? totalMonthlyExpenses : totalFixedCosts).toLocaleString()}원
                                 </h2>
                             </div>
@@ -147,39 +155,40 @@ const ExpensesPage: React.FC = () => {
                                 ? "이 금액이 마진 분석 시 '총 운영비'로 반영됩니다."
                                 : "이 금액을 기준으로 매달 지출을 간편하게 생성할 수 있습니다."}
                         </p>
-                    </div>
+                    </Card>
 
-                    <div className="glass p-6 space-y-4">
+                    <Card variant="glass" className="space-y-4">
                         <h4 className="font-bold flex items-center gap-2"><Clock size={16} className="text-primary" /> 조회 및 도구</h4>
 
                         {activeTab === 'History' && (
                             <div className="space-y-4">
-                                <div className="relative">
-                                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
-                                    <input
-                                        type="month"
-                                        className="input-field h-12"
-                                        style={{ paddingLeft: '3.5rem' }}
-                                        value={selectedMonth}
-                                        onChange={(e) => setSelectedMonth(e.target.value)}
-                                    />
-                                </div>
-                                <button
+                                <Input
+                                    type="month"
+                                    value={selectedMonth}
+                                    onChange={(e) => setSelectedMonth(e.target.value)}
+                                    leftIcon={<Calendar className="text-primary" size={18} />}
+                                    className="pl-10"
+                                />
+                                <Button
+                                    variant="secondary"
                                     onClick={handleImport}
-                                    className="btn w-full py-4 bg-white/5 border border-white/10 hover:bg-white/10 text-primary font-bold shadow-xl flex items-center justify-center gap-2"
+                                    className="w-full flex items-center justify-center gap-2"
+                                    leftIcon={<ArrowDownToLine size={18} />}
                                 >
-                                    <ArrowDownToLine size={18} /> 고정비 일괄 불러오기
-                                </button>
+                                    고정비 일괄 불러오기
+                                </Button>
                             </div>
                         )}
 
-                        <button
+                        <Button
+                            variant="primary"
                             onClick={() => handleShowForm()}
-                            className="btn btn-primary w-full py-4 shadow-xl shadow-primary/20 flex items-center justify-center gap-2"
+                            className="w-full flex items-center justify-center gap-2 shadow-xl shadow-primary/20"
+                            leftIcon={<Plus size={20} />}
                         >
-                            <Plus size={20} /> {activeTab === 'History' ? '새 지출 입력' : '새 고정비 등록'}
-                        </button>
-                    </div>
+                            {activeTab === 'History' ? '새 지출 입력' : '새 고정비 등록'}
+                        </Button>
+                    </Card>
                 </div>
 
                 {/* Content Area */}
@@ -198,81 +207,74 @@ const ExpensesPage: React.FC = () => {
                                         <Edit2 className="text-primary" size={24} />
                                         {editingItem?.id ? '내역 수정' : '새 내역 입력'}
                                     </h3>
-                                    <button onClick={() => setShowForm(false)} className="p-2 hover:bg-white/10 rounded-full transition-all">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setShowForm(false)}
+                                        className="rounded-full"
+                                    >
                                         <X size={20} />
-                                    </button>
+                                    </Button>
                                 </div>
 
                                 <form onSubmit={handleSave} className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-bold text-text-muted uppercase tracking-wider">항목명</label>
-                                            <input
+                                        <Input
+                                            label="항목명"
+                                            required
+                                            placeholder="예: 월세, 전기세, 알바비"
+                                            value={editingItem?.name}
+                                            onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                                        />
+                                        <div className="space-y-1.5">
+                                            <label className="block text-xs font-bold text-text-muted uppercase tracking-wider pl-1">
+                                                금액 (원)
+                                            </label>
+                                            <NumberInput
+                                                className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-text-main placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/10 font-bold text-right"
                                                 required
-                                                className="input-field"
-                                                placeholder="예: 월세, 전기세, 알바비"
-                                                value={editingItem?.name}
-                                                onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-bold text-text-muted uppercase tracking-wider">금액 (원)</label>
-                                            <input
-                                                required
-                                                type="number"
-                                                className="input-field font-mono font-bold"
-                                                value={editingItem?.amount}
-                                                onChange={(e) => setEditingItem({ ...editingItem, amount: Number(e.target.value) })}
+                                                value={editingItem?.amount || 0}
+                                                onChange={(val) => setEditingItem({ ...editingItem, amount: val })}
                                             />
                                         </div>
                                         {activeTab === 'History' ? (
                                             <>
-                                                <div className="space-y-2">
-                                                    <label className="text-xs font-bold text-text-muted uppercase tracking-wider">날짜</label>
-                                                    <input
-                                                        required
-                                                        type="date"
-                                                        className="input-field"
-                                                        value={editingItem?.expense_date?.split('T')[0]}
-                                                        onChange={(e) => setEditingItem({ ...editingItem, expense_date: e.target.value })}
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-xs font-bold text-text-muted uppercase tracking-wider">분류</label>
-                                                    <select
-                                                        className="input-field"
-                                                        value={editingItem?.category}
-                                                        onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })}
-                                                    >
-                                                        <option value="일반">일반</option>
-                                                        <option value="고정비">고정비</option>
-                                                        <option value="인건비">인건비</option>
-                                                        <option value="식자재">식자재</option>
-                                                        <option value="기타">기타</option>
-                                                    </select>
-                                                </div>
+                                                <Input
+                                                    label="날짜"
+                                                    required
+                                                    type="date"
+                                                    value={editingItem?.expense_date?.split('T')[0]}
+                                                    onChange={(e) => setEditingItem({ ...editingItem, expense_date: e.target.value })}
+                                                />
+                                                <Select
+                                                    label="분류"
+                                                    value={editingItem?.category}
+                                                    onChange={(e) => setEditingItem({ ...editingItem, category: e.target.value })}
+                                                    options={[
+                                                        { value: '일반', label: '일반' },
+                                                        { value: '고정비', label: '고정비' },
+                                                        { value: '인건비', label: '인건비' },
+                                                        { value: '식자재', label: '식자재' },
+                                                        { value: '기타', label: '기타' }
+                                                    ]}
+                                                />
                                             </>
                                         ) : (
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-bold text-text-muted uppercase tracking-wider">결제일 (매월)</label>
-                                                <div className="flex items-center gap-3">
-                                                    <input
-                                                        required
-                                                        type="number"
-                                                        min="1"
-                                                        max="31"
-                                                        className="input-field w-24 text-center"
-                                                        value={editingItem?.payment_day}
-                                                        onChange={(e) => setEditingItem({ ...editingItem, payment_day: Number(e.target.value) })}
-                                                    />
-                                                    <span className="font-bold">일</span>
-                                                </div>
-                                            </div>
+                                            <Input
+                                                label="결제일 (매월)"
+                                                required
+                                                type="number"
+                                                min={1}
+                                                max={31}
+                                                rightIcon={<span className="font-bold text-sm">일</span>}
+                                                value={editingItem?.payment_day}
+                                                onChange={(e) => setEditingItem({ ...editingItem, payment_day: Number(e.target.value) })}
+                                            />
                                         )}
                                         <div className="md:col-span-2 space-y-2">
-                                            <label className="text-xs font-bold text-text-muted uppercase tracking-wider">설명 / 비고</label>
+                                            <label className="text-xs font-bold text-text-muted uppercase tracking-wider pl-1">설명 / 비고</label>
                                             <textarea
-                                                className="input-field min-h-[100px] py-4"
+                                                className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-text-main placeholder:text-gray-400 dark:placeholder:text-gray-600 outline-none transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary/10 min-h-[100px]"
                                                 placeholder="상세 내용을 입력하세요..."
                                                 value={editingItem?.description}
                                                 onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })}
@@ -280,13 +282,23 @@ const ExpensesPage: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="flex gap-4 pt-6 border-t border-white/5">
-                                        <button type="submit" className="btn btn-primary flex-1 py-4 shadow-xl shadow-primary/20 font-bold">
-                                            <Check size={20} className="mr-2 inline" /> 저장하기
-                                        </button>
-                                        <button type="button" onClick={() => setShowForm(false)} className="btn flex-1 py-4 bg-white/5 hover:bg-white/10 font-bold">
+                                    <div className="flex gap-4 pt-6 border-t border-gray-200 dark:border-white/5">
+                                        <Button
+                                            type="submit"
+                                            variant="primary"
+                                            className="flex-1 py-4 shadow-xl shadow-primary/20"
+                                            leftIcon={<Check size={20} />}
+                                        >
+                                            저장하기
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            onClick={() => setShowForm(false)}
+                                            className="flex-1 py-4"
+                                        >
                                             취소
-                                        </button>
+                                        </Button>
                                     </div>
                                 </form>
                             </motion.div>
@@ -295,145 +307,154 @@ const ExpensesPage: React.FC = () => {
                                 key="list"
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                className="glass overflow-hidden"
                             >
-                                {/* Mobile Card View */}
-                                <div className="md:hidden divide-y divide-white/5">
-                                    {(activeTab === 'History' ? expenses : fixedCosts).length === 0 ? (
-                                        <div className="py-20 text-center text-text-muted italic">데이터가 없습니다.</div>
-                                    ) : (
-                                        (activeTab === 'History' ? expenses : fixedCosts).map((item) => {
-                                            const historyItem = item as Expense;
-                                            const templateItem = item as FixedCost;
-                                            return (
-                                                <div key={item.id} className="p-5 space-y-4 hover:bg-white/[0.02] transition-colors">
-                                                    <div className="flex justify-between items-start">
-                                                        <div>
-                                                            <div className="font-bold text-lg text-white">{historyItem.name || templateItem.name}</div>
-                                                            {activeTab === 'History' ? (
-                                                                <div className="text-xs text-text-muted mt-1">{new Date(historyItem.expense_date).toLocaleDateString()}</div>
-                                                            ) : (
-                                                                <div className="text-xs text-text-muted mt-1 flex items-center gap-1"><Clock size={10} /> 매월 {templateItem.payment_day}일</div>
-                                                            )}
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <div className={`font-mono font-bold text-lg ${activeTab === 'History' ? 'text-red-400' : 'text-primary'}`}>
-                                                                {item.amount.toLocaleString()}원
+                                <Card
+                                    variant="glass"
+                                    className="!p-0 overflow-hidden"
+                                >
+                                    {/* Mobile Card View */}
+                                    <div className="md:hidden divide-y divide-white/5">
+                                        {(activeTab === 'History' ? expenses : fixedCosts).length === 0 ? (
+                                            <div className="py-20 text-center text-text-muted italic">데이터가 없습니다.</div>
+                                        ) : (
+                                            (activeTab === 'History' ? expenses : fixedCosts).map((item) => {
+                                                const historyItem = item as Expense;
+                                                const templateItem = item as FixedCost;
+                                                return (
+                                                    <div key={item.id} className="p-5 space-y-4 hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
+                                                        <div className="flex justify-between items-start">
+                                                            <div>
+                                                                <div className="font-bold text-lg text-text-main">{historyItem.name || templateItem.name}</div>
+                                                                {activeTab === 'History' ? (
+                                                                    <div className="text-xs text-text-muted mt-1">{new Date(historyItem.expense_date).toLocaleDateString()}</div>
+                                                                ) : (
+                                                                    <div className="text-xs text-text-muted mt-1 flex items-center gap-1"><Clock size={10} /> 매월 {templateItem.payment_day}일</div>
+                                                                )}
                                                             </div>
-                                                            {activeTab === 'History' && (
-                                                                <span className="px-2 py-0.5 rounded-md bg-white/5 text-[10px] text-text-muted border border-white/10 uppercase font-bold tracking-wider mt-1 inline-block">
-                                                                    {historyItem.category}
-                                                                </span>
-                                                            )}
+                                                            <div className="text-right">
+                                                                <div className={`font-mono font-bold text-lg ${activeTab === 'History' ? 'text-red-400' : 'text-primary'}`}>
+                                                                    {item.amount.toLocaleString()}원
+                                                                </div>
+                                                                {activeTab === 'History' && (
+                                                                    <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/5 text-[10px] text-text-muted border border-gray-200 dark:border-white/10 uppercase font-bold tracking-wider mt-1 inline-block">
+                                                                        {historyItem.category}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-white/5">
+                                                            <div className="text-xs text-text-muted truncate flex-1 pr-4">
+                                                                {item.description || "설명 없음"}
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    variant="secondary"
+                                                                    size="icon"
+                                                                    onClick={() => handleShowForm(item)}
+                                                                >
+                                                                    <Edit2 size={16} />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="danger"
+                                                                    size="icon"
+                                                                    onClick={() => handleDelete(item.id)}
+                                                                >
+                                                                    <Trash2 size={16} />
+                                                                </Button>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                    <div className="flex justify-between items-center pt-2 border-t border-white/5">
-                                                        <div className="text-xs text-text-muted truncate flex-1 pr-4">
-                                                            {item.description || "설명 없음"}
-                                                        </div>
-                                                        <div className="flex gap-2">
-                                                            <button
-                                                                onClick={() => handleShowForm(item)}
-                                                                className="p-2 rounded-lg bg-white/5 text-text-muted hover:bg-white/10 hover:text-white transition-all"
-                                                            >
-                                                                <Edit2 size={16} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDelete(item.id)}
-                                                                className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all"
-                                                            >
-                                                                <Trash2 size={16} />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    )}
-                                </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
 
-                                {/* Desktop Table View */}
-                                <div className="hidden md:block overflow-x-auto">
-                                    <table className="w-full text-left">
-                                        <thead>
-                                            <tr className="bg-white/[0.02] text-[10px] font-black text-text-muted uppercase tracking-widest border-b border-white/5">
-                                                <th className="px-6 py-5">{activeTab === 'History' ? '날짜' : '항목명'}</th>
-                                                <th className="px-6 py-5">{activeTab === 'History' ? '분류' : '금액'}</th>
-                                                <th className="px-6 py-5">{activeTab === 'History' ? '항목명' : '결제일'}</th>
-                                                <th className="px-6 py-5 text-right">{activeTab === 'History' ? '금액' : '관리'}</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-white/5">
-                                            {loading ? (
-                                                <tr><td colSpan={4} className="py-20 text-center"><RefreshCw className="animate-spin text-primary mx-auto mb-2" size={32} /><p className="text-text-muted font-bold">동기화 중...</p></td></tr>
-                                            ) : (activeTab === 'History' ? expenses : fixedCosts).length === 0 ? (
-                                                <tr><td colSpan={4} className="py-20 text-center text-text-muted italic">데이터가 없습니다.</td></tr>
-                                            ) : (
-                                                (activeTab === 'History' ? expenses : fixedCosts).map((item) => {
-                                                    const historyItem = item as Expense;
-                                                    const templateItem = item as FixedCost;
-                                                    return (
-                                                        <tr key={item.id} className="group hover:bg-white/[0.01] transition-all">
-                                                            <td className="px-6 py-5">
-                                                                {activeTab === 'History' ? (
-                                                                    <div className="flex items-center gap-3">
-                                                                        <div className="w-10 h-10 rounded-xl bg-white/5 flex flex-col items-center justify-center text-[10px] font-black text-white/50 border border-white/5">
-                                                                            <span>{new Date(historyItem.expense_date).getMonth() + 1}</span>
-                                                                            <span className="text-primary leading-none text-base">{new Date(historyItem.expense_date).getDate()}</span>
+                                    {/* Desktop Table View */}
+                                    <div className="hidden md:block overflow-x-auto">
+                                        <table className="w-full text-left">
+                                            <thead>
+                                                <tr className="bg-gray-50 dark:bg-white/[0.02] text-[10px] font-black text-text-muted uppercase tracking-widest border-b border-gray-200 dark:border-white/5">
+                                                    <th className="px-6 py-5">{activeTab === 'History' ? '날짜' : '항목명'}</th>
+                                                    <th className="px-6 py-5">{activeTab === 'History' ? '분류' : '금액'}</th>
+                                                    <th className="px-6 py-5">{activeTab === 'History' ? '항목명' : '결제일'}</th>
+                                                    <th className="px-6 py-5 text-right">{activeTab === 'History' ? '금액' : '관리'}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-200 dark:divide-white/5">
+                                                {loading ? (
+                                                    <tr><td colSpan={4} className="py-20 text-center"><RefreshCw className="animate-spin text-primary mx-auto mb-2" size={32} /><p className="text-text-muted font-bold">동기화 중...</p></td></tr>
+                                                ) : (activeTab === 'History' ? expenses : fixedCosts).length === 0 ? (
+                                                    <tr><td colSpan={4} className="py-20 text-center text-text-muted italic">데이터가 없습니다.</td></tr>
+                                                ) : (
+                                                    (activeTab === 'History' ? expenses : fixedCosts).map((item) => {
+                                                        const historyItem = item as Expense;
+                                                        const templateItem = item as FixedCost;
+                                                        return (
+                                                            <tr key={item.id} className="group hover:bg-gray-50 dark:hover:bg-white/[0.01] transition-all">
+                                                                <td className="px-6 py-5">
+                                                                    {activeTab === 'History' ? (
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/5 flex flex-col items-center justify-center text-[10px] font-black text-text-muted/50 dark:text-white/50 border border-gray-200 dark:border-white/5">
+                                                                                <span>{new Date(historyItem.expense_date).getMonth() + 1}</span>
+                                                                                <span className="text-primary leading-none text-base">{new Date(historyItem.expense_date).getDate()}</span>
+                                                                            </div>
+                                                                            <div className="text-xs font-medium text-text-muted">
+                                                                                {new Date(historyItem.expense_date).toLocaleDateString('ko-KR', { weekday: 'short' })}
+                                                                            </div>
                                                                         </div>
-                                                                        <div className="text-xs font-medium text-text-muted">
-                                                                            {new Date(historyItem.expense_date).toLocaleDateString('ko-KR', { weekday: 'short' })}
+                                                                    ) : (
+                                                                        <div className="font-bold text-lg">{templateItem.name}</div>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-6 py-5">
+                                                                    {activeTab === 'History' ? (
+                                                                        <span className="px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/5 text-xs text-text-muted border border-gray-200 dark:border-white/10 uppercase font-bold tracking-wider">{historyItem.category}</span>
+                                                                    ) : (
+                                                                        <div className="font-mono font-bold text-primary">{templateItem.amount.toLocaleString()}원</div>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-6 py-5">
+                                                                    {activeTab === 'History' ? (
+                                                                        <div>
+                                                                            <div className="font-bold text-text-main">{historyItem.name}</div>
+                                                                            <div className="text-xs text-text-muted truncate max-w-[150px]">{historyItem.description}</div>
                                                                         </div>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="font-bold text-lg">{templateItem.name}</div>
-                                                                )}
-                                                            </td>
-                                                            <td className="px-6 py-5">
-                                                                {activeTab === 'History' ? (
-                                                                    <span className="px-2 py-1 rounded-lg bg-white/5 text-xs text-text-muted border border-white/10 uppercase font-bold tracking-wider">{historyItem.category}</span>
-                                                                ) : (
-                                                                    <div className="font-mono font-bold text-primary">{templateItem.amount.toLocaleString()}원</div>
-                                                                )}
-                                                            </td>
-                                                            <td className="px-6 py-5">
-                                                                {activeTab === 'History' ? (
-                                                                    <div>
-                                                                        <div className="font-bold text-white">{historyItem.name}</div>
-                                                                        <div className="text-xs text-text-muted truncate max-w-[150px]">{historyItem.description}</div>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="flex items-center gap-2 text-text-muted">
-                                                                        <Clock size={14} /> 매월 {templateItem.payment_day}일
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                            <td className="px-6 py-5 text-right">
-                                                                {activeTab === 'History' ? (
-                                                                    <div className="flex flex-col items-end">
-                                                                        <div className="text-lg font-black text-red-400">{historyItem.amount.toLocaleString()}원</div>
-                                                                        <button onClick={() => handleDelete(historyItem.id)} className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-400/10 text-red-400 rounded-lg transition-all"><Trash2 size={14} /></button>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="flex justify-end gap-2">
-                                                                        <button onClick={() => handleShowForm(templateItem)} className="p-2 hover:bg-white/10 text-primary rounded-lg transition-all"><Edit2 size={16} /></button>
-                                                                        <button onClick={() => handleDelete(templateItem.id)} className="p-2 hover:bg-white/10 text-red-400 rounded-lg transition-all"><Trash2 size={16} /></button>
-                                                                    </div>
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                                                    ) : (
+                                                                        <div className="flex items-center gap-2 text-text-muted">
+                                                                            <Clock size={14} /> 매월 {templateItem.payment_day}일
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-6 py-5 text-right">
+                                                                    {activeTab === 'History' ? (
+                                                                        <div className="flex flex-col items-end">
+                                                                            <div className="text-lg font-black text-red-400">{historyItem.amount.toLocaleString()}원</div>
+                                                                            <div className="flex gap-2">
+                                                                                <button onClick={() => handleShowForm(historyItem)} className="opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-100 dark:hover:bg-white/10 text-primary rounded-lg transition-all"><Edit2 size={16} /></button>
+                                                                                <button onClick={() => handleDelete(historyItem.id)} className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-400/10 text-red-400 rounded-lg transition-all"><Trash2 size={16} /></button>
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="flex justify-end gap-2">
+                                                                            <button onClick={() => handleShowForm(templateItem)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 text-primary rounded-lg transition-all"><Edit2 size={16} /></button>
+                                                                            <button onClick={() => handleDelete(templateItem.id)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 text-red-400 rounded-lg transition-all"><Trash2 size={16} /></button>
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </Card>
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

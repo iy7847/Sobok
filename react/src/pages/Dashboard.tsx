@@ -67,7 +67,7 @@ const Dashboard: React.FC = () => {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
-                        className="text-4xl md:text-6xl font-black text-white leading-tight"
+                        className="text-4xl md:text-6xl font-black text-text-main leading-tight"
                     >
                         소복, 복잡함은 덜고 <br />
                         <span className="text-primary italic">이익은 채우고</span>
@@ -116,7 +116,7 @@ const Dashboard: React.FC = () => {
                                 {loading ? (
                                     <div className="h-12 w-20 bg-white/5 animate-pulse rounded-xl" />
                                 ) : (
-                                    <h2 className="text-4xl md:text-5xl font-black text-white tracking-tighter">
+                                    <h2 className="text-4xl md:text-5xl font-black text-text-main tracking-tighter">
                                         {card.value}
                                     </h2>
                                 )}

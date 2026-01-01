@@ -4,14 +4,15 @@ export default {
         "./index.html",
         "./src/**/*.{js,ts,jsx,tsx}",
     ],
+    darkMode: 'class',
     theme: {
         extend: {
             colors: {
-                primary: '#6366f1', // Indigo-500
-                'primary-hover': '#4f46e5', // Indigo-600
-                'bg-dark': '#0f172a', // Slate-900
-                'text-main': '#f8fafc', // Slate-50
-                'text-muted': '#94a3b8', // Slate-400
+                primary: 'var(--primary)',
+                'primary-hover': 'var(--primary-hover)',
+                background: 'var(--bg-background)',
+                'text-main': 'var(--text-main)',
+                'text-muted': 'var(--text-muted)',
             },
             fontFamily: {
                 pretendard: ['Pretendard', 'sans-serif'],

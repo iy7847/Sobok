@@ -14,33 +14,15 @@ import {
     Download
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useEffect } from 'react';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
+import { useNotifications } from '../../hooks/useNotifications';
+import ThemeToggle from '../common/ThemeToggle';
 
 const Sidebar: React.FC = () => {
     const { user, profile, signOut } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
-    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-
-    useEffect(() => {
-        const handleBeforeInstallPrompt = (e: any) => {
-            console.log('PWA: beforeinstallprompt event fired! App is now installable.');
-            e.preventDefault();
-            setDeferredPrompt(e);
-        };
-
-        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-        return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    }, []);
-
-    const handleInstallClick = async () => {
-        if (!deferredPrompt) return;
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-            setDeferredPrompt(null);
-        }
-    };
+    const { isInstallable, installApp } = usePWAInstall();
+    useNotifications(); // Enable Order Notifications
 
     const navItems = [
         { to: '/', icon: <LayoutDashboard size={20} />, label: '대시보드' },
@@ -74,7 +56,7 @@ const Sidebar: React.FC = () => {
                                 key={item.to}
                                 to={item.to}
                                 className={({ isActive }) =>
-                                    `flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive ? 'bg-primary text-white shadow-lg' : 'text-text-muted hover:bg-white/5 hover:text-white'
+                                    `flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive ? 'bg-primary text-white shadow-lg' : 'text-text-muted hover:bg-gray-100 dark:hover:bg-white/5 hover:text-primary dark:hover:text-white'
                                     }`
                                 }
                                 onClick={() => setIsOpen(false)}
@@ -88,13 +70,15 @@ const Sidebar: React.FC = () => {
                     <div className="mt-4 pt-6 border-t border-white/5 space-y-4">
                         <div className="px-4 space-y-1">
                             <p className="text-xs font-medium text-emerald-400">오늘도 행복이 소복소복 🌸</p>
-                            <div className="font-bold text-sm text-white truncate">{profile?.company_name || user?.email?.split('@')[0]}님</div>
+                            <div className="font-bold text-sm text-text-main truncate">{profile?.company_name || user?.email?.split('@')[0]}님</div>
                             <div className="text-[10px] text-text-muted font-mono">ver 1.0.3</div>
                         </div>
 
-                        {deferredPrompt && (
+                        <ThemeToggle />
+
+                        {isInstallable && (
                             <button
-                                onClick={handleInstallClick}
+                                onClick={installApp}
                                 className="mx-4 flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
                             >
                                 <Download size={18} />

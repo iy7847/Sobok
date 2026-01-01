@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { LogIn, UserPlus, Mail, Lock, Building, User, Phone, Briefcase, Loader2, Sparkles, ArrowRight } from 'lucide-react';
+import { LogIn, UserPlus, Mail, Lock, Building, User, Phone, Briefcase, Loader2, Sparkles, ArrowRight, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 
 const LoginPage: React.FC = () => {
     const [isLoginMode, setIsLoginMode] = useState(true);
@@ -21,11 +22,14 @@ const LoginPage: React.FC = () => {
     const { user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
 
+    const { isInstallable, installApp } = usePWAInstall(); // Hook usage
+
     useEffect(() => {
         if (!authLoading && user) {
             navigate('/');
         }
     }, [user, authLoading, navigate]);
+
 
     const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const input = e.target.value.replace(/[^0-9]/g, '');
@@ -135,6 +139,18 @@ const LoginPage: React.FC = () => {
                             복잡함은 덜고, 이익은 채우는 원가 파트너
                         </p>
                     </div>
+
+                    {isInstallable && (
+                        <div className="absolute top-4 right-4">
+                            <button
+                                onClick={installApp}
+                                className="p-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-indigo-400 rounded-lg transition-all"
+                                title="앱 설치하기"
+                            >
+                                <Download size={20} />
+                            </button>
+                        </div>
+                    )}
 
                     {/* Toggle Switch */}
                     <div className="flex bg-black/20 rounded-lg p-1 mb-6 relative">

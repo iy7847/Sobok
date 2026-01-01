@@ -9,8 +9,10 @@ import {
     Loader2,
     ChevronDown,
     Check,
-    Package
+    Package,
+    Upload
 } from 'lucide-react';
+import { compressImage } from '../utils/image';
 
 const ShopPage: React.FC = () => {
     const { shopId } = useParams<{ shopId: string }>();
@@ -386,6 +388,68 @@ const ShopPage: React.FC = () => {
                             {el.type === 'Notice' && (
                                 <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-sm whitespace-pre-wrap text-text-muted leading-relaxed">
                                     {el.label}
+                                </div>
+                            )}
+
+                            {el.type === 'FileUpload' && (
+                                <div className="space-y-3">
+                                    {answers[el.id] ? (
+                                        <div className="relative rounded-xl overflow-hidden border border-white/10 group">
+                                            <img src={answers[el.id]} alt="Preview" className="w-full h-48 object-cover bg-black/20" />
+                                            <button
+                                                type="button"
+                                                onClick={() => handleInputChange(el.id, '')}
+                                                className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full hover:bg-black/70 transition-colors"
+                                            >
+                                                <Check size={16} className="rotate-45" /> {/* Using generic close/check logic or just overwrite. Actually simple re-upload is fine. */}
+                                            </button>
+                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                                <p className="text-white text-xs font-bold">변경하려면 클릭하세요</p>
+                                            </div>
+                                            <input
+                                                type="file"
+                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                accept="image/*"
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) {
+                                                        try {
+                                                            const compressed = await compressImage(file, 1024, 0.8);
+                                                            handleInputChange(el.id, compressed);
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                            alert('이미지 처리 실패');
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <label className="flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed border-white/10 hover:border-primary/50 hover:bg-white/5 transition-all cursor-pointer text-text-muted hover:text-primary">
+                                            <Upload size={24} />
+                                            <div className="text-center">
+                                                <p className="text-sm font-bold">사진 첨부하기</p>
+                                                <p className="text-[10px] opacity-70">클릭하여 이미지를 선택하세요</p>
+                                            </div>
+                                            <input
+                                                type="file"
+                                                className="hidden"
+                                                accept="image/*"
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) {
+                                                        try {
+                                                            const compressed = await compressImage(file, 1024, 0.8);
+                                                            handleInputChange(el.id, compressed);
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                            alert('이미지 처리 실패');
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                        </label>
+                                    )}
                                 </div>
                             )}
 

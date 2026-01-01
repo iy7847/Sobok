@@ -10,7 +10,6 @@ import {
     Info,
     DollarSign,
     PieChart as PieChartIcon,
-    Minus,
     X,
     HelpCircle
 } from 'lucide-react';
@@ -22,6 +21,9 @@ import {
     Tooltip,
     Legend
 } from 'recharts';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Card from '../components/ui/Card';
 
 const ProfitPage: React.FC = () => {
     const { loading, fetchMonthStats } = useStats();
@@ -124,94 +126,100 @@ const ProfitPage: React.FC = () => {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
                     <div className="flex items-center gap-3 mb-2">
-                        <h1 className="text-4xl font-black text-white flex items-center gap-3">
+                        <h1 className="text-4xl font-black text-text-main flex items-center gap-3">
                             <TrendingUp className="text-primary" size={40} />
                             마진 분석 리포트
                         </h1>
-                        <button onClick={() => setShowGuide(true)} className="text-text-muted hover:text-white transition-colors" title="계산 방법 보기">
+                        <button onClick={() => setShowGuide(true)} className="text-text-muted hover:text-primary dark:hover:text-white transition-colors" title="계산 방법 보기">
                             <HelpCircle size={24} />
                         </button>
                     </div>
                     <p className="text-text-muted font-medium">실제 판매 및 지출 데이터를 기반으로 비즈니스 수익성을 진단합니다.</p>
                 </div>
 
-                <div className="flex items-center gap-3 glass p-2 rounded-2xl">
-                    <Calendar className="text-primary ml-2" size={20} />
-                    <input
+                <div className="flex items-center gap-3">
+                    <Input
                         type="month"
-                        className="bg-transparent border-none text-white font-bold outline-none"
                         value={selectedMonth}
                         onChange={(e) => setSelectedMonth(e.target.value)}
+                        className="font-bold border-none bg-transparent shadow-none focus:ring-0 !py-0 w-auto"
+                        leftIcon={<Calendar className="text-primary" size={20} />}
+                        containerClassName="!space-y-0"
                     />
-                    <button onClick={loadData} className="p-2 hover:bg-white/10 rounded-xl text-text-muted hover:text-white transition-all">
+                    <Button variant="ghost" size="icon" onClick={loadData}>
                         <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-                    </button>
+                    </Button>
                 </div>
             </div>
 
             {/* Analysis Options Panel */}
-            <div className="glass p-6 grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="space-y-3">
+            <Card variant="glass" className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="space-y-2">
                     <label className="text-xs font-black text-text-muted uppercase tracking-widest flex items-center gap-2">
                         <Target size={14} /> 분석 모드
                     </label>
-                    <div className="flex p-1 bg-white/5 rounded-xl">
-                        <button
+                    <div className="flex gap-2 p-1 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5">
+                        <Button
+                            variant="secondary"
                             onClick={() => setIsForecastMode(true)}
-                            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${isForecastMode ? 'bg-primary text-white shadow-lg' : 'text-text-muted hover:text-white'}`}
+                            className="flex-1"
+                            isSelected={isForecastMode}
                         >
                             예상(시뮬레이션)
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                            variant="secondary"
                             onClick={() => setIsForecastMode(false)}
-                            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${!isForecastMode ? 'bg-emerald-500 text-white shadow-lg' : 'text-text-muted hover:text-white'}`}
+                            className="flex-1"
+                            isSelected={!isForecastMode}
                         >
                             실제(주문기반)
-                        </button>
+                        </Button>
                     </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2">
                     <label className="text-xs font-black text-text-muted uppercase tracking-widest flex items-center gap-2">
                         <BarChart3 size={14} /> 운영비 배분 기준
                     </label>
-                    <div className="flex p-1 bg-white/5 rounded-xl">
-                        <button
+                    <div className="flex gap-2 p-1 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5">
+                        <Button
+                            variant="secondary"
                             onClick={() => setAllocationMethod('Quantity')}
-                            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${allocationMethod === 'Quantity' ? 'bg-white/10 text-white' : 'text-text-muted hover:text-white'}`}
+                            className="flex-1"
+                            isSelected={allocationMethod === 'Quantity'}
                         >
                             판매량 비례
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                            variant="secondary"
                             onClick={() => setAllocationMethod('Revenue')}
-                            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${allocationMethod === 'Revenue' ? 'bg-white/10 text-white' : 'text-text-muted hover:text-white'}`}
+                            className="flex-1"
+                            isSelected={allocationMethod === 'Revenue'}
                         >
                             매출액 비례
-                        </button>
+                        </Button>
                     </div>
                 </div>
 
-                <div className="space-y-3">
-                    <label className="text-xs font-black text-text-muted uppercase tracking-widest flex items-center gap-2 text-red-400">
-                        <Minus size={14} /> 가상 추가 지출 보정
-                    </label>
-                    <div className="relative">
-                        <input
-                            type="number"
-                            className="input-field h-11 pr-12 text-right font-black"
-                            placeholder="0"
-                            value={additionalCost}
-                            onChange={(e) => setAdditionalCost(Number(e.target.value))}
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted text-sm">원</span>
-                    </div>
+                <div>
+                    <Input
+                        type="number"
+                        label="가상 추가 지출 보정"
+                        value={additionalCost}
+                        onChange={(e) => setAdditionalCost(Number(e.target.value))}
+                        placeholder="0"
+                        className="text-right font-black"
+                        rightIcon={<span className="text-sm font-bold">원</span>}
+                        containerClassName="h-full flex flex-col justify-end pb-1"
+                    />
                 </div>
-            </div>
+            </Card>
 
             {/* Summary Cards and Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="glass p-6 space-y-4">
+                    <Card variant="glass" className="space-y-4">
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-xs font-bold text-text-muted mb-1">{isForecastMode ? '예상 매출' : '실제 매출'}</p>
@@ -221,32 +229,32 @@ const ProfitPage: React.FC = () => {
                                 <DollarSign size={24} />
                             </div>
                         </div>
-                        <div className="pt-4 border-t border-white/5">
-                            <p className="text-xs font-medium text-text-muted">총 판매량: <span className="text-white font-bold">{analysis.reduce((sum, p) => sum + p.sales_count, 0).toLocaleString()}개</span></p>
+                        <div className="pt-4 border-t border-gray-200 dark:border-white/5">
+                            <p className="text-xs font-medium text-text-muted">총 판매량: <span className="text-text-main font-bold">{analysis.reduce((sum, p) => sum + p.sales_count, 0).toLocaleString()}개</span></p>
                         </div>
-                    </div>
+                    </Card>
 
-                    <div className="glass p-6 space-y-4">
+                    <Card variant="glass" className="space-y-4">
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-xs font-bold text-text-muted mb-1">총 지출 (재료+운영+손실)</p>
-                                <h2 className="text-3xl font-black text-white">{(totals.variable + totals.fixed + totals.inventoryLoss).toLocaleString()}원</h2>
+                                <h2 className="text-3xl font-black text-text-main">{(totals.variable + totals.fixed + totals.inventoryLoss).toLocaleString()}원</h2>
                             </div>
-                            <div className="p-3 bg-white/5 rounded-2xl text-text-muted">
+                            <div className="p-3 bg-gray-100 dark:bg-white/5 rounded-2xl text-text-muted">
                                 <TrendingUp size={24} className="rotate-180" />
                             </div>
                         </div>
-                        <div className="flex gap-4 pt-4 border-t border-white/5 overflow-x-auto pb-1">
+                        <div className="flex gap-4 pt-4 border-t border-gray-200 dark:border-white/5 overflow-x-auto pb-1">
                             <div className="shrink-0">
                                 <span className="text-[10px] text-text-muted block uppercase font-bold">재료비</span>
                                 <span className="text-xs font-bold text-blue-400">{totals.variable.toLocaleString()}원</span>
                             </div>
-                            <div className="w-px h-6 bg-white/10 shrink-0"></div>
+                            <div className="w-px h-6 bg-gray-200 dark:bg-white/10 shrink-0"></div>
                             <div className="shrink-0">
                                 <span className="text-[10px] text-text-muted block uppercase font-bold">운영비</span>
                                 <span className="text-xs font-bold text-slate-400">{totals.fixed.toLocaleString()}원</span>
                             </div>
-                            <div className="w-px h-6 bg-white/10 shrink-0"></div>
+                            <div className="w-px h-6 bg-gray-200 dark:bg-white/10 shrink-0"></div>
                             <div className="shrink-0">
                                 <span className="text-[10px] text-text-muted block uppercase font-bold">재고손실</span>
                                 <span className="text-xs font-bold text-amber-500">{totals.inventoryLoss.toLocaleString()}원</span>
@@ -257,7 +265,7 @@ const ProfitPage: React.FC = () => {
                                 <span>비용 효율성</span>
                                 <span>{totals.revenue > 0 ? ((totals.variable + totals.fixed + totals.inventoryLoss) / totals.revenue * 100).toFixed(1) : 0}%</span>
                             </div>
-                            <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                            <div className="h-2 bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
                                 <motion.div
                                     initial={{ width: 0 }}
                                     animate={{ width: `${Math.min(100, totals.revenue > 0 ? ((totals.variable + totals.fixed + totals.inventoryLoss) / totals.revenue * 100) : 0)}%` }}
@@ -265,14 +273,14 @@ const ProfitPage: React.FC = () => {
                                 />
                             </div>
                         </div>
-                    </div>
+                    </Card>
 
                     <div className={`col-span-full glass p-8 flex flex-col md:flex-row items-center justify-between gap-8 border-l-4 ${totals.profit >= 0 ? 'border-l-emerald-500 bg-emerald-500/5' : 'border-l-red-500 bg-red-500/5'}`}>
                         <div className="space-y-1">
                             <p className={`text-xs font-black uppercase tracking-widest ${totals.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                                 {isForecastMode ? '예상 순수익' : '실제 순수익'}
                             </p>
-                            <h2 className="text-5xl font-black text-white">{totals.profit.toLocaleString()}원</h2>
+                            <h2 className="text-5xl font-black text-text-main">{totals.profit.toLocaleString()}원</h2>
                         </div>
                         <div className="flex flex-col items-center md:items-end">
                             <div className={`text-6xl font-black ${totals.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{totals.margin.toFixed(1)}%</div>
@@ -311,7 +319,7 @@ const ProfitPage: React.FC = () => {
             {/* Detailed Analysis List */}
             <div className="glass overflow-hidden">
                 <div className="p-4 md:p-6 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <h3 className="font-bold flex items-center gap-2 text-white">
+                    <h3 className="font-bold flex items-center gap-2 text-text-main">
                         <TrendingUp size={18} className="text-primary" />
                         제품별 수익성 상세 분석
                     </h3>
@@ -322,35 +330,35 @@ const ProfitPage: React.FC = () => {
                 </div>
 
                 {/* Desktop Table Header */}
-                <div className="hidden md:grid grid-cols-[2fr_1fr_1.5fr_1.5fr_1.5fr_1.5fr_1.5fr_1fr_1.5fr] text-right gap-4 px-6 py-4 bg-white/[0.02] text-[10px] font-black text-text-muted uppercase tracking-widest">
+                <div className="hidden md:grid grid-cols-[2fr_1fr_1.5fr_1.5fr_1.5fr_1.5fr_1.5fr_1fr_1.5fr] text-right gap-4 px-6 py-4 bg-gray-50 dark:bg-white/[0.02] text-[10px] font-black text-text-muted uppercase tracking-widest border-b border-gray-200 dark:border-white/5">
                     <div className="text-left">제품명</div>
                     <div className="text-center">판매량</div>
                     <div>매출액</div>
                     <div>재료비(총)</div>
                     <div>운영비 배분</div>
-                    <div className="bg-white/5 pr-2">단가 원가</div>
+                    <div className="bg-gray-100 dark:bg-white/5 pr-2 rounded">단가 원가</div>
                     <div>개당 마진</div>
                     <div className="text-center">마진율</div>
                     <div>순수익 기여</div>
                 </div>
 
-                <div className="divide-y divide-white/5">
+                <div className="divide-y divide-gray-200 dark:divide-white/5">
                     {analysis.length === 0 ? (
                         <div className="py-20 text-center text-text-muted italic">분석할 데이터가 없습니다.</div>
                     ) : (
                         analysis.map((p, idx) => (
                             <React.Fragment key={idx}>
                                 {/* Mobile Card View */}
-                                <div className="md:hidden p-5 space-y-4 hover:bg-white/[0.02] transition-colors">
+                                <div className="md:hidden p-5 space-y-4 hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
                                     <div className="flex justify-between items-start">
-                                        <div className="font-bold text-lg text-white">{p.name}</div>
+                                        <div className="font-bold text-lg text-text-main">{p.name}</div>
                                         <span className={`px-2 py-1 rounded-lg text-xs font-black ${p.margin_rate >= 30 ? 'bg-emerald-500/20 text-emerald-400' : p.margin_rate >= 15 ? 'bg-primary/20 text-primary' : 'bg-amber-400/20 text-amber-400'}`}>
                                             {p.margin_rate.toFixed(1)}%
                                         </span>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="bg-white/5 p-3 rounded-lg space-y-1">
+                                        <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-lg space-y-1">
                                             <div className="text-[10px] text-text-muted uppercase">매출액</div>
                                             <div className="font-bold">{p.total_revenue.toLocaleString()}원</div>
                                             <div className="text-[10px] text-text-muted">({p.sales_count.toLocaleString()}개 판매)</div>
@@ -369,13 +377,13 @@ const ProfitPage: React.FC = () => {
                                 </div>
 
                                 {/* Desktop Table Row */}
-                                <div className="hidden md:grid grid-cols-[2fr_1fr_1.5fr_1.5fr_1.5fr_1.5fr_1.5fr_1fr_1.5fr] text-right gap-4 px-6 py-5 items-center hover:bg-white/[0.02] transition-colors">
-                                    <div className="text-left font-bold text-white">{p.name}</div>
+                                <div className="hidden md:grid grid-cols-[2fr_1fr_1.5fr_1.5fr_1.5fr_1.5fr_1.5fr_1fr_1.5fr] text-right gap-4 px-6 py-5 items-center hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
+                                    <div className="text-left font-bold text-text-main">{p.name}</div>
                                     <div className="text-center font-bold text-lg">{p.sales_count.toLocaleString()}</div>
                                     <div className="text-text-muted">{p.total_revenue.toLocaleString()}</div>
                                     <div className="text-text-muted">{p.total_variable_cost.toLocaleString()}</div>
                                     <div className="text-primary/70">{p.allocated_fixed_cost.toLocaleString()}</div>
-                                    <div className="bg-white/5 font-mono font-bold pr-2">
+                                    <div className="bg-gray-100 dark:bg-white/5 font-mono font-bold pr-2 rounded">
                                         {(p.unit_variable_cost + (p.sales_count > 0 ? p.allocated_fixed_cost / p.sales_count : 0)).toLocaleString()}원
                                     </div>
                                     <div className={`font-bold ${p.total_profit / p.sales_count >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -386,7 +394,7 @@ const ProfitPage: React.FC = () => {
                                             {p.margin_rate.toFixed(1)}%
                                         </span>
                                     </div>
-                                    <div className="font-black text-lg text-white">
+                                    <div className="font-black text-lg text-text-main">
                                         {p.total_profit.toLocaleString()}
                                     </div>
                                 </div>
@@ -398,36 +406,36 @@ const ProfitPage: React.FC = () => {
 
             {showGuide && (
                 <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setShowGuide(false)}>
-                    <div className="bg-[#1E1E1E] border border-white/10 rounded-3xl max-w-2xl w-full p-8 space-y-8 shadow-2xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-white/10 rounded-3xl max-w-2xl w-full p-8 space-y-8 shadow-2xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-start">
                             <div>
-                                <h3 className="text-2xl font-black flex items-center gap-2">
+                                <h3 className="text-2xl font-black flex items-center gap-2 text-text-main dark:text-white">
                                     <Info className="text-primary" />
                                     수익 분석 계산 가이드
                                 </h3>
                                 <p className="text-text-muted mt-1">소복이 순수익을 계산하는 방법을 안내해 드려요.</p>
                             </div>
-                            <button onClick={() => setShowGuide(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all"><X /></button>
+                            <button onClick={() => setShowGuide(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 text-text-main dark:text-white rounded-xl transition-all"><X /></button>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div className="space-y-4">
                                 <h4 className="font-bold text-lg text-emerald-400 border-b border-emerald-500/30 pb-2">기본 공식</h4>
                                 <div className="space-y-3 text-sm">
-                                    <div className="glass p-3">
-                                        <div className="font-bold text-white mb-1">총 매출 (Revenue)</div>
+                                    <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-transparent">
+                                        <div className="font-bold text-gray-900 dark:text-white mb-1">총 매출 (Revenue)</div>
                                         <div className="text-text-muted fa-xs">판매가 × 판매 수량</div>
                                     </div>
-                                    <div className="glass p-3">
-                                        <div className="font-bold text-white mb-1">변동비 (Variable Cost)</div>
+                                    <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-transparent">
+                                        <div className="font-bold text-gray-900 dark:text-white mb-1">변동비 (Variable Cost)</div>
                                         <div className="text-text-muted fa-xs">재료 원가(BOM) × 판매 수량</div>
                                     </div>
-                                    <div className="glass p-3">
-                                        <div className="font-bold text-white mb-1">운영비 (Fixed Cost)</div>
+                                    <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-transparent">
+                                        <div className="font-bold text-gray-900 dark:text-white mb-1">운영비 (Fixed Cost)</div>
                                         <div className="text-text-muted fa-xs">고정 지출 + 추가 입력 비용 (재고 손실 제외)</div>
                                     </div>
-                                    <div className="glass p-3 border-l-2 border-amber-400">
-                                        <div className="font-bold text-amber-400 mb-1">재고 손실 (Inventory Loss)</div>
+                                    <div className="bg-amber-50 dark:bg-amber-400/5 rounded-xl p-3 border-l-2 border-amber-400">
+                                        <div className="font-bold text-amber-600 dark:text-amber-400 mb-1">재고 손실 (Inventory Loss)</div>
                                         <div className="text-text-muted fa-xs">재고 실사를 통해 파악된 손실 금액</div>
                                     </div>
                                 </div>
@@ -436,25 +444,25 @@ const ProfitPage: React.FC = () => {
                             <div className="space-y-4">
                                 <h4 className="font-bold text-lg text-primary border-b border-primary/30 pb-2">배분 및 순수익</h4>
                                 <div className="space-y-3 text-sm">
-                                    <div className="glass p-3">
-                                        <div className="font-bold text-white mb-1">순수익 계산</div>
+                                    <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-transparent">
+                                        <div className="font-bold text-gray-900 dark:text-white mb-1">순수익 계산</div>
                                         <div className="text-text-muted fa-xs">매출 - (변동비 + 배분된 운영비 + 재고 손실)</div>
                                     </div>
-                                    <div className="glass p-3">
-                                        <div className="font-bold text-white mb-1">운영비 배분 기준</div>
+                                    <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-transparent">
+                                        <div className="font-bold text-gray-900 dark:text-white mb-1">운영비 배분 기준</div>
                                         <ul className="list-disc list-inside text-text-muted text-xs space-y-1 mt-1">
-                                            <li><span className="text-white font-bold">판매량 비례</span>: 많이 팔린 제품에 운영비를 더 많이 배분</li>
-                                            <li><span className="text-white font-bold">매출액 비례</span>: 비싼 제품에 운영비를 더 많이 배분</li>
+                                            <li><span className="text-gray-900 dark:text-white font-bold">판매량 비례</span>: 많이 팔린 제품에 운영비를 더 많이 배분</li>
+                                            <li><span className="text-gray-900 dark:text-white font-bold">매출액 비례</span>: 비싼 제품에 운영비를 더 많이 배분</li>
                                         </ul>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-primary/5 border border-primary/20 p-4 rounded-xl flex gap-4 items-start">
-                            <Info className="shrink-0 text-primary mt-1" size={20} />
-                            <div className="text-sm text-text-muted">
-                                <span className="text-white font-bold block mb-1">💡 팁</span>
+                        <div className="bg-blue-50 dark:bg-white/5 border border-blue-100 dark:border-white/10 p-4 rounded-xl flex gap-4 items-start">
+                            <Info className="shrink-0 text-blue-500 dark:text-primary mt-1" size={20} />
+                            <div className="text-sm text-blue-800 dark:text-gray-300">
+                                <span className="text-blue-900 dark:text-white font-bold block mb-1">💡 팁</span>
                                 '예상(시뮬레이션)' 모드에서는 아직 팔리지 않은 재고도 모두 팔렸다고 가정하여 최대 수익을 예측해 볼 수 있습니다.
                             </div>
                         </div>

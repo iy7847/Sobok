@@ -1,7 +1,10 @@
 import { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import Sidebar from './components/layout/Sidebar';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { initKakao } from './utils/kakao';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import MainLayout from './components/layout/MainLayout';
+
 import LoginPage from './pages/Login';
 import AppInstallGuidePage from './pages/AppInstallGuide';
 import ItemsPage from './pages/Items';
@@ -15,30 +18,9 @@ import ShopPage from './pages/Shop';
 import InventoryCheckPage from './pages/InventoryCheck';
 import './styles/index.css';
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
-
-  if (loading) return <div className="h-screen flex items-center justify-center">Loading...</div>;
-  if (!user) return <Navigate to="/login" />;
-
-  return <>{children}</>;
-};
-
 function App() {
   useEffect(() => {
-    try {
-      if (window.Kakao && !window.Kakao.isInitialized()) {
-        const key = import.meta.env.VITE_KAKAO_JS_KEY;
-        if (key) {
-          window.Kakao.init(key);
-          console.log('Kakao SDK Initialized');
-        } else {
-          console.warn('Kakao JS Key is missing in env');
-        }
-      }
-    } catch (e) {
-      console.error('Kakao SDK Init Failed', e);
-    }
+    initKakao();
   }, []);
 
   return (
@@ -49,11 +31,11 @@ function App() {
           <Route path="/install-guide" element={<AppInstallGuidePage />} />
           <Route path="/shop/:shopId" element={<ShopPage />} />
 
-          <Route path="/*" element={
-            <ProtectedRoute>
-              <div className="flex">
-                <Sidebar />
-                <main className="main-content flex-1">
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
                   <Routes>
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/items" element={<ItemsPage />} />
@@ -64,14 +46,15 @@ function App() {
                     <Route path="/inventory-check" element={<InventoryCheckPage />} />
                     <Route path="/config" element={<ConfigPage />} />
                   </Routes>
-                </main>
-              </div>
-            </ProtectedRoute>
-          } />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Router>
     </AuthProvider>
   );
 }
+
 
 export default App;

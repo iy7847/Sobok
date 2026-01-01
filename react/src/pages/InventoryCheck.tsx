@@ -11,6 +11,9 @@ import {
     Package,
     AlertTriangle
 } from 'lucide-react';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Card from '../components/ui/Card';
 
 const InventoryCheckPage: React.FC = () => {
     const { items, fetchItems, fetchBOMs } = useItems();
@@ -179,7 +182,7 @@ const InventoryCheckPage: React.FC = () => {
         <div className="max-w-7xl mx-auto space-y-6 pb-20">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
-                    <h1 className="text-4xl font-black mb-2 flex items-center gap-3 text-white">
+                    <h1 className="text-4xl font-black mb-2 flex items-center gap-3 text-text-main">
                         <ClipboardCheck className="text-primary" size={40} />
                         재고 실사 (Inventory Audit)
                     </h1>
@@ -188,70 +191,63 @@ const InventoryCheckPage: React.FC = () => {
             </div>
 
             {/* Controls */}
-            <div className="glass p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card variant="glass" className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                     <label className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-2">
                         <Calendar size={14} /> 실사 기간 기준
                     </label>
-                    <div className="flex gap-2 p-1 bg-white/5 rounded-xl">
+                    <div className="flex gap-2 p-1 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5">
                         {(['Monthly', 'Quarterly', 'Half-yearly'] as const).map(t => (
-                            <button
+                            <Button
                                 key={t}
+                                variant="secondary"
                                 onClick={() => setPeriodType(t)}
-                                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${periodType === t ? 'bg-primary text-white shadow' : 'text-text-muted hover:text-white'}`}
+                                isSelected={periodType === t}
+                                className="flex-1 text-xs"
+                                size="sm"
                             >
                                 {t === 'Monthly' ? '월간' : t === 'Quarterly' ? '분기' : '반기'}
-                            </button>
+                            </Button>
                         ))}
                     </div>
                 </div>
 
-                <div className="space-y-2">
-                    <label className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-2">
-                        <Calendar size={14} /> 대상 기간 선택
-                    </label>
-                    <input
-                        type="month"
-                        className="input-field h-10"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                    />
-                </div>
+                <Input
+                    label="대상 기간 선택"
+                    type="month"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="h-10"
+                />
 
-                <div className="space-y-2">
-                    <label className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-2">
-                        <Search size={14} /> 품목 검색
-                    </label>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={16} />
-                        <input
-                            className="input-field h-10 !pl-12"
-                            placeholder="원재료명 검색..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-                </div>
-            </div>
+                <Input
+                    label="품목 검색"
+                    placeholder="원재료명 검색..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    leftIcon={<Search size={16} />}
+                    className="h-10 pl-10"
+                />
+            </Card>
 
             {/* Main Content */}
-            <div className="glass overflow-hidden">
-                <div className="p-4 md:p-6 border-b border-white/5 flex flex-col md:flex-row justify-between items-center gap-2">
+            <Card variant="glass" className="!p-0 overflow-hidden">
+                <div className="p-4 md:p-6 border-b border-gray-200 dark:border-white/5 flex flex-col md:flex-row justify-between items-center gap-2">
                     <h3 className="font-bold flex items-center gap-2">
                         <Package className="text-primary" size={18} /> 실사 대상 원재료 목록
                     </h3>
                     <div className="text-sm font-medium text-text-muted">
-                        총 조회된 품목: <span className="text-white">{auditList.length}</span>개
+                        총 조회된 품목: <span className="text-text-main font-bold">{auditList.length}</span>개
                     </div>
                 </div>
 
                 {/* Mobile Card View */}
-                <div className="md:hidden divide-y divide-white/5">
+                <div className="md:hidden divide-y divide-gray-200 dark:divide-white/5">
                     {auditList.filter(i => i.name.includes(searchQuery)).map(item => (
                         <div key={item.id} className="p-5 space-y-4 bg-transparent">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <div className="font-bold text-lg text-white">{item.name}</div>
+                                    <div className="font-bold text-lg text-text-main">{item.name}</div>
                                     <div className="text-xs text-text-muted">{item.cost_price.toLocaleString()}원 / Unit</div>
                                 </div>
                                 <div className={`text-sm font-bold ${item.diff_qty < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
@@ -262,7 +258,7 @@ const InventoryCheckPage: React.FC = () => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-bold text-text-muted uppercase">전산 재고 (System)</label>
-                                    <div className="p-2 bg-white/5 rounded text-sm font-bold text-primary">
+                                    <div className="p-2 bg-gray-100 dark:bg-white/5 rounded text-sm font-bold text-primary">
                                         {item.system_stock.toLocaleString()}
                                     </div>
                                     <div className="text-[10px] text-text-muted flex justify-between">
@@ -272,9 +268,9 @@ const InventoryCheckPage: React.FC = () => {
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-bold text-text-muted uppercase text-emerald-400">실재고 입력 (Actual)</label>
-                                    <input
+                                    <Input
                                         type="number"
-                                        className="w-full bg-emerald-500/10 border border-emerald-500/30 rounded p-2 text-right font-bold text-white outline-none focus:ring-2 ring-emerald-500/50"
+                                        className="text-right font-bold text-emerald-600 dark:text-white bg-emerald-500/10 border-emerald-500/30 ring-emerald-500/50"
                                         placeholder="실사량"
                                         value={item.actual_stock}
                                         onChange={(e) => handleInput(item.id, 'actual_stock', e.target.value)}
@@ -282,12 +278,12 @@ const InventoryCheckPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 pt-2 border-t border-white/5">
+                            <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-200 dark:border-white/5">
                                 <div className="flex items-center justify-between">
                                     <span className="text-xs text-text-muted">구매량(입고)</span>
-                                    <input
+                                    <Input
                                         type="number"
-                                        className="w-20 bg-white/5 border border-white/10 rounded px-2 py-1 text-right outline-none focus:border-primary text-white text-sm"
+                                        className="w-20 bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-right h-8 text-sm"
                                         placeholder="0"
                                         value={item.in_qty === 0 && !inputs[item.id]?.in_qty ? '' : item.in_qty}
                                         onChange={(e) => handleInput(item.id, 'in_qty', e.target.value)}
@@ -308,32 +304,33 @@ const InventoryCheckPage: React.FC = () => {
                 <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-left text-sm">
                         <thead>
-                            <tr className="bg-white/[0.02] text-xs font-black text-text-muted uppercase tracking-widest border-b border-white/5">
+                            <tr className="bg-gray-50 dark:bg-white/[0.02] text-xs font-black text-text-muted uppercase tracking-widest border-b border-gray-200 dark:border-white/5">
                                 <th className="px-4 py-4 min-w-[150px]">원재료명</th>
-                                <th className="px-4 py-4 text-right bg-white/5">기초 재고</th>
-                                <th className="px-4 py-4 text-right bg-white/5">구매량(입고)</th>
-                                <th className="px-4 py-4 text-right bg-white/5">이론 소비(출고)</th>
+                                <th className="px-4 py-4 text-right bg-gray-100 dark:bg-white/5">기초 재고</th>
+                                <th className="px-4 py-4 text-right bg-gray-100 dark:bg-white/5">구매량(입고)</th>
+                                <th className="px-4 py-4 text-right bg-gray-100 dark:bg-white/5">이론 소비(출고)</th>
                                 <th className="px-4 py-4 text-right font-bold text-primary bg-primary/5 border-x border-primary/10">전산 재고</th>
                                 <th className="px-4 py-4 text-center min-w-[120px] bg-emerald-500/5 border-t-2 border-emerald-500">실재고 입력</th>
                                 <th className="px-4 py-4 text-right">차이 (Diff)</th>
                                 <th className="px-4 py-4 text-right">손실 환산액</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/5">
+                        <tbody className="divide-y divide-gray-200 dark:divide-white/5">
                             {auditList.filter(i => i.name.includes(searchQuery)).map(item => (
-                                <tr key={item.id} className="group hover:bg-white/[0.01]">
+                                <tr key={item.id} className="group hover:bg-gray-50 dark:hover:bg-white/[0.01]">
                                     <td className="px-4 py-3 font-medium">
-                                        <div className="text-white">{item.name}</div>
+                                        <div className="text-text-main">{item.name}</div>
                                         <div className="text-[10px] text-text-muted">{item.cost_price.toLocaleString()}원 / Unit</div>
                                     </td>
 
                                     {/* Calculating Columns */}
                                     <td className="px-4 py-3 text-right text-text-muted">{item.prev_stock}</td>
                                     <td className="px-4 py-3 text-right">
-                                        <input
+                                        <Input
                                             type="number"
-                                            className="w-20 bg-white/5 border border-white/10 rounded px-2 py-1 text-right outline-none focus:border-primary text-white"
+                                            className="w-20 bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-right h-8 px-2"
                                             placeholder="0"
+                                            containerClassName="!space-y-0"
                                             value={item.in_qty === 0 && !inputs[item.id]?.in_qty ? '' : item.in_qty}
                                             onChange={(e) => handleInput(item.id, 'in_qty', e.target.value)}
                                         />
@@ -347,10 +344,11 @@ const InventoryCheckPage: React.FC = () => {
 
                                     {/* Actual Input */}
                                     <td className="px-4 py-3 text-center bg-emerald-500/[0.02]">
-                                        <input
+                                        <Input
                                             type="number"
-                                            className="w-24 bg-emerald-500/10 border border-emerald-500/30 rounded px-2 py-1.5 text-right font-bold text-white outline-none focus:ring-2 ring-emerald-500/50"
+                                            className="w-24 bg-emerald-500/10 border-emerald-500/30 text-right font-bold text-white ring-emerald-500/50 h-9 px-2"
                                             placeholder="실사량"
+                                            containerClassName="!space-y-0"
                                             value={item.actual_stock}
                                             onChange={(e) => handleInput(item.id, 'actual_stock', e.target.value)}
                                         />
@@ -370,29 +368,31 @@ const InventoryCheckPage: React.FC = () => {
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </Card>
 
             {/* Footer Summary */}
-            <div className="fixed bottom-0 left-0 md:left-[240px] right-0 bg-[#0A0A0A] border-t border-white/10 p-6 z-50 flex flex-col md:flex-row justify-between items-center gap-4 shadow-2xl">
+            <div className="fixed bottom-0 left-0 md:left-[240px] right-0 bg-white dark:bg-[#0A0A0A] border-t border-gray-200 dark:border-white/10 p-6 z-50 flex flex-col md:flex-row justify-between items-center gap-4 shadow-2xl">
                 <div className="flex items-center gap-8">
                     <div>
                         <div className="text-xs font-bold text-text-muted uppercase">총 손실 처리 예상 금액</div>
                         <div className="text-3xl font-black text-red-500">{totalLoss.toLocaleString()}원</div>
                     </div>
-                    <div className="hidden md:block h-10 w-px bg-white/10"></div>
+                    <div className="hidden md:block h-10 w-px bg-gray-200 dark:bg-white/10"></div>
                     <div className="text-sm text-text-muted hidden md:block">
                         <AlertTriangle className="inline text-amber-400 mr-2" size={16} />
                         '확정 및 비용 처리'를 누르면 위 금액이 [재고손실] 지출 항목으로 자동 등록됩니다.
                     </div>
                 </div>
 
-                <button
+                <Button
                     onClick={handleSave}
-                    className="btn btn-primary h-14 px-8 shadow-xl shadow-primary/20 font-bold text-lg flex items-center gap-2 w-full md:w-auto justify-center"
+                    variant="primary"
+                    className="h-14 px-8 shadow-xl shadow-primary/20 text-lg w-full md:w-auto"
                     disabled={totalLoss === 0}
+                    leftIcon={<Save size={20} />}
                 >
-                    <Save size={20} /> 실사 확정 및 비용 처리
-                </button>
+                    실사 확정 및 비용 처리
+                </Button>
             </div>
         </div>
     );

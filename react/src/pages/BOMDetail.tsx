@@ -12,6 +12,8 @@ import {
     CheckCircle2,
     AlertCircle
 } from 'lucide-react';
+import { NumberInput } from '../components/common/NumberInput';
+import Button from '../components/ui/Button';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -180,7 +182,7 @@ const BOMDetailPage: React.FC = () => {
     return (
         <div className="max-w-5xl mx-auto space-y-8 pb-20">
             <div className="flex items-center gap-4">
-                <button onClick={() => navigate('/items')} className="p-3 glass hover:bg-white/10 text-white rounded-2xl transition-all">
+                <button onClick={() => navigate('/items')} className="p-3 glass hover:bg-gray-100 dark:hover:bg-white/10 text-text-main dark:text-white rounded-2xl transition-all">
                     <ArrowLeft size={24} />
                 </button>
                 <div>
@@ -202,19 +204,25 @@ const BOMDetailPage: React.FC = () => {
                         </h3>
 
                         <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-2 p-1 bg-white/5 rounded-xl text-xs font-bold">
-                                <button
+                            <div className="grid grid-cols-2 gap-2">
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    isSelected={filterType === 'Material'}
                                     onClick={() => setFilterType('Material')}
-                                    className={`py-2 rounded-lg transition-all ${filterType === 'Material' ? 'bg-white/10 text-white shadow-sm' : 'text-text-muted hover:text-white'}`}
+                                    className="w-full"
                                 >
                                     원자재
-                                </button>
-                                <button
+                                </Button>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    isSelected={filterType === 'Component'}
                                     onClick={() => setFilterType('Component')}
-                                    className={`py-2 rounded-lg transition-all ${filterType === 'Component' ? 'bg-white/10 text-white shadow-sm' : 'text-text-muted hover:text-white'}`}
+                                    className="w-full"
                                 >
                                     반제품
-                                </button>
+                                </Button>
                             </div>
 
                             <div className="relative">
@@ -234,7 +242,7 @@ const BOMDetailPage: React.FC = () => {
                                     <button
                                         key={item.id}
                                         onClick={() => setSelectedItemToAdd(item)}
-                                        className={`w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group ${selectedItemToAdd?.id === item.id ? 'bg-primary text-white' : 'bg-white/5 hover:bg-white/10 text-text-muted hover:text-white'}`}
+                                        className={`w-full text-left p-3 rounded-xl transition-all flex items-center justify-between group ${selectedItemToAdd?.id === item.id ? 'bg-primary text-white' : 'bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 text-text-muted hover:text-text-main dark:hover:text-white'}`}
                                     >
                                         <span className="font-bold text-sm">{item.name}</span>
                                         <span className={`text-[10px] font-mono ${selectedItemToAdd?.id === item.id ? 'text-white/70' : 'text-text-muted'}`}>
@@ -258,14 +266,13 @@ const BOMDetailPage: React.FC = () => {
                                         <button onClick={() => setSelectedItemToAdd(null)} className="text-primary/50 hover:text-primary"><Trash2 size={14} /></button>
                                     </div>
                                     <div className="flex gap-2">
-                                        <input
-                                            type="number"
-                                            className="input-field flex-1 h-10 text-sm"
+                                        <NumberInput
+                                            className="flex-1 min-w-0 h-10 text-sm bg-white dark:bg-white/5 border border-primary/20 rounded-xl px-3 text-text-main placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-bold text-right"
                                             placeholder="소요량"
                                             value={inputQty}
-                                            onChange={(e) => setInputQty(Number(e.target.value))}
+                                            onChange={setInputQty}
                                         />
-                                        <button onClick={handleAddIngredient} className="btn btn-primary h-10 px-4 text-sm font-bold">추가</button>
+                                        <button onClick={handleAddIngredient} className="btn btn-primary h-10 px-4 text-sm font-bold shrink-0 whitespace-nowrap">추가</button>
                                     </div>
                                 </motion.div>
                             )}
