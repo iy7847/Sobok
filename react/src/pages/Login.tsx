@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { LogIn, UserPlus, Mail, Lock, Building, User, Phone, Briefcase, Loader2, Sparkles, ArrowRight, Download } from 'lucide-react';
+import { LogIn, UserPlus, Mail, Lock, Building, User, Phone, Briefcase, Loader2, ArrowRight, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
