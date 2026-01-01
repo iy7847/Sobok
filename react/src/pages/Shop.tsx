@@ -425,7 +425,7 @@ const ShopPage: React.FC = () => {
                                             />
                                         </div>
                                     ) : (
-                                        <label className="flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed border-white/10 hover:border-primary/50 hover:bg-white/5 transition-all cursor-pointer text-text-muted hover:text-primary">
+                                        <div className="relative flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed border-white/10 hover:border-primary/50 hover:bg-white/5 transition-all cursor-pointer text-text-muted hover:text-primary">
                                             <Upload size={24} />
                                             <div className="text-center">
                                                 <p className="text-sm font-bold">사진 첨부하기</p>
@@ -433,7 +433,7 @@ const ShopPage: React.FC = () => {
                                             </div>
                                             <input
                                                 type="file"
-                                                className="hidden"
+                                                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
                                                 accept="image/*"
                                                 onChange={async (e) => {
                                                     const file = e.target.files?.[0];
@@ -448,7 +448,7 @@ const ShopPage: React.FC = () => {
                                                     }
                                                 }}
                                             />
-                                        </label>
+                                        </div>
                                     )}
                                 </div>
                             )}
