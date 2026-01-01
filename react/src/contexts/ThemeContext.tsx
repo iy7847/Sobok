@@ -26,6 +26,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const applyTheme = (targetTheme: 'light' | 'dark') => {
             removeOldTheme();
             root.classList.add(targetTheme);
+
+            // Update meta theme-color
+            const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+            if (metaThemeColor) {
+                metaThemeColor.setAttribute('content', targetTheme === 'dark' ? '#0f172a' : '#f8fafc');
+            }
         };
 
         if (theme === 'system') {

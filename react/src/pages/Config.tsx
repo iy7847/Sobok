@@ -210,6 +210,38 @@ const ConfigPage: React.FC = () => {
         loadConfig();
     }, [loadConfig]);
 
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const compressedDataUrl = await compressImage(file, 800, 0.7);
+
+            // Check if ShopLogo already exists
+            const existingLogo = elements.find(el => el.type === 'ShopLogo');
+
+            if (existingLogo) {
+                // Update existing
+                updateElement(existingLogo.id, { options: compressedDataUrl });
+            } else {
+                // Create new
+                const newLogo: FormElement = {
+                    id: Date.now().toString(),
+                    type: 'ShopLogo',
+                    label: '상점 로고',
+                    required: false,
+                    options: compressedDataUrl
+                };
+                setElements(prev => [...prev, newLogo]);
+            }
+        } catch (error) {
+            console.error('Logo upload failed:', error);
+            alert('이미지 처리 중 오류가 발생했습니다.');
+        }
+    };
+
+    const shopLogo = elements.find(el => el.type === 'ShopLogo');
+
     const toolboxButtonClass = "w-full flex items-center gap-3 px-4 py-3 bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/5 rounded-xl text-[13px] font-bold text-text-muted text-left transition-all duration-200 hover:bg-white dark:hover:bg-white/10 hover:shadow-md dark:hover:shadow-none hover:text-primary dark:hover:text-white hover:translate-x-1";
 
     return (
@@ -254,18 +286,55 @@ const ConfigPage: React.FC = () => {
                                 value={basicInfo.bank_account}
                                 onChange={(e) => setBasicInfo({ ...basicInfo, bank_account: e.target.value })}
                             />
+
+                            {/* Logo Upload Section */}
+                            <div className="pt-4 border-t border-gray-200 dark:border-white/10">
+                                <label className="block text-xs font-bold text-text-muted uppercase tracking-wider pl-1 mb-2">상점 로고</label>
+                                <div className="flex items-start gap-4">
+                                    <div className="relative group w-24 h-24 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center overflow-hidden">
+                                        {shopLogo?.options ? (
+                                            <>
+                                                <img src={shopLogo.options} alt="Shop Logo" className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                    <span className="text-white text-[10px] font-bold">변경</span>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <ImageIcon className="text-text-muted opacity-50" size={32} />
+                                        )}
+                                        <input
+                                            type="file"
+                                            className="absolute inset-0 opacity-0 cursor-pointer"
+                                            accept="image/*"
+                                            onChange={handleLogoUpload}
+                                        />
+                                    </div>
+                                    <div className="flex-1 text-sm text-text-muted">
+                                        <p>주문서 최상단에 표시될 로고를 업로드하세요.</p>
+                                        <p className="text-xs opacity-70 mt-1">권장 크기: 200x200px (정사각형)</p>
+                                        {shopLogo && (
+                                            <button
+                                                onClick={() => removeElement(shopLogo.id)}
+                                                className="mt-2 text-xs text-red-400 hover:text-red-500 font-bold"
+                                            >
+                                                로고 삭제
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </section>
 
                     {/* Form Elements */}
                     <div className="space-y-4">
                         <Reorder.Group axis="y" values={elements} onReorder={setElements} className="space-y-4">
-                            {elements.map((el, index) => (
+                            {elements.filter(el => el.type !== 'ShopLogo').map((el, index) => (
                                 <ConfigItem
                                     key={el.id}
                                     item={el}
                                     index={index}
-                                    totalCount={elements.length}
+                                    totalCount={elements.filter(e => e.type !== 'ShopLogo').length}
                                     updateElement={updateElement}
                                     removeElement={removeElement}
                                     moveElement={moveElement}

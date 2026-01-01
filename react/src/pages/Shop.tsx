@@ -185,7 +185,7 @@ const ShopPage: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-900">
                 <Loader2 className="animate-spin text-primary" size={48} />
             </div>
         );
@@ -193,42 +193,65 @@ const ShopPage: React.FC = () => {
 
     if (!shopProfile) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white p-4 text-center">
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-900 p-4 text-center">
                 <div className="space-y-4">
-                    <AlertCircle className="mx-auto text-red-400" size={48} />
+                    <AlertCircle className="mx-auto text-red-500" size={48} />
                     <h1 className="text-2xl font-bold">상점을 찾을 수 없습니다</h1>
-                    <p className="text-text-muted">올바른 링크인지 확인해주세요.</p>
+                    <p className="text-gray-500">올바른 링크인지 확인해주세요.</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-950 text-white pb-20">
+        <div className="min-h-screen bg-gray-50 text-gray-900 pb-20">
             {/* Header */}
-            <div className="bg-gray-900/50 backdrop-blur-md border-b border-white/5 sticky top-0 z-10">
+            <div className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-10">
                 <div className="max-w-xl mx-auto px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <Store className="text-primary" size={24} />
-                        <h1 className="font-bold text-lg text-white">{shopProfile.company_name || '소복 상점'}</h1>
+                        {formElements.find(el => el.type === 'ShopLogo') ? (
+                            <img
+                                src={formElements.find(el => el.type === 'ShopLogo')?.options}
+                                alt="Logo"
+                                className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                            />
+                        ) : (
+                            <Store className="text-primary" size={24} />
+                        )}
+                        <h1 className="font-bold text-lg text-gray-900">{shopProfile.company_name || '소복 상점'}</h1>
                     </div>
                 </div>
             </div>
 
+
+
             {/* Content */}
             <div className="max-w-xl mx-auto p-6 space-y-8">
+                {/* Shop Logo */}
+                {formElements.find(el => el.type === 'ShopLogo') && (
+                    <div className="flex justify-center py-4">
+                        <div className="w-32 h-32 rounded-full overflow-hidden shadow-lg border-4 border-white ring-1 ring-gray-100">
+                            <img
+                                src={formElements.find(el => el.type === 'ShopLogo')?.options}
+                                alt="Shop Logo"
+                                className="w-full h-full object-cover"
+                            />
+                        </div>
+                    </div>
+                )}
+
                 {/* Shop Notice */}
                 {(shopProfile.shop_notice || shopProfile.bank_account) && (
-                    <div className="glass p-6 space-y-4 border-l-4 border-l-primary bg-primary/5">
+                    <div className="bg-white p-6 space-y-4 border-l-4 border-l-primary shadow-sm rounded-xl">
                         {shopProfile.shop_notice && (
-                            <div className="whitespace-pre-wrap text-sm leading-relaxed text-text-muted">
+                            <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-600">
                                 {shopProfile.shop_notice}
                             </div>
                         )}
                         {shopProfile.bank_account && (
-                            <div className="pt-4 border-t border-white/10">
+                            <div className="pt-4 border-t border-gray-100">
                                 <p className="text-xs font-bold text-primary mb-1">입금 계좌</p>
-                                <p className="font-mono bg-white/5 p-2 rounded text-sm select-all">{shopProfile.bank_account}</p>
+                                <p className="font-mono bg-gray-50 p-2 rounded text-sm select-all text-gray-800 border border-gray-200">{shopProfile.bank_account}</p>
                             </div>
                         )}
                     </div>
@@ -238,28 +261,28 @@ const ShopPage: React.FC = () => {
 
                     {/* Product Selection (Visible only if products exist) */}
                     {products.length > 0 && (
-                        <div className="glass p-6 space-y-4 border-2 border-primary/20">
-                            <h3 className="font-bold flex items-center gap-2 text-lg text-white">
+                        <div className="bg-white p-6 space-y-4 border border-gray-200 rounded-xl shadow-sm">
+                            <h3 className="font-bold flex items-center gap-2 text-lg text-gray-900">
                                 <Package className="text-primary" size={20} />
-                                상품 선택 <span className="text-red-400">*</span>
+                                상품 선택 <span className="text-red-500">*</span>
                             </h3>
                             <div className="space-y-2">
                                 {products.map((product) => (
                                     <label
                                         key={product.id}
-                                        className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${selectedProduct?.id === product.id ? 'bg-primary/20 border-primary ring-1 ring-primary' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
+                                        className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${selectedProduct?.id === product.id ? 'bg-primary/5 border-primary ring-1 ring-primary' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}
                                     >
                                         <div className="flex items-center gap-4">
                                             <input
                                                 type="radio"
                                                 name="main-product"
-                                                className="w-5 h-5 text-primary bg-transparent border-white/30 focus:ring-primary"
+                                                className="w-5 h-5 text-primary bg-transparent border-gray-300 focus:ring-primary"
                                                 checked={selectedProduct?.id === product.id}
                                                 onChange={() => setSelectedProduct(product)}
                                             />
                                             <div>
-                                                <p className="font-bold text-white">{product.name}</p>
-                                                <p className="text-xs text-text-muted">{product.selling_price.toLocaleString()}원</p>
+                                                <p className="font-bold text-gray-900">{product.name}</p>
+                                                <p className="text-xs text-gray-500">{product.selling_price.toLocaleString()}원</p>
                                             </div>
                                         </div>
                                         <div className="font-bold text-primary">
@@ -271,14 +294,15 @@ const ShopPage: React.FC = () => {
                         </div>
                     )}
 
+
                     {/* Dynamic Form Elements */}
-                    {formElements.map((el) => (
-                        <div key={el.id} className="glass p-5 space-y-3">
+                    {formElements.filter(el => el.type !== 'ShopLogo').map((el) => (
+                        <div key={el.id} className="bg-white p-5 space-y-3 border border-gray-200 rounded-xl shadow-sm">
                             {/* Label */}
                             {el.type !== 'Image' && el.type !== 'Notice' && (
-                                <label className="block text-sm font-bold flex items-center gap-1">
+                                <label className="block text-sm font-bold flex items-center gap-1 text-gray-800">
                                     {el.label}
-                                    {el.required && <span className="text-red-400">*</span>}
+                                    {el.required && <span className="text-red-500">*</span>}
                                 </label>
                             )}
 
@@ -286,7 +310,7 @@ const ShopPage: React.FC = () => {
                             {el.type === 'Text' && (
                                 <input
                                     type="text"
-                                    className="input-field"
+                                    className="w-full bg-white border border-gray-300 rounded-lg p-3 text-gray-900 outline-none focus:border-primary transition-colors"
                                     placeholder={el.placeholder}
                                     value={answers[el.id] || ''}
                                     onChange={(e) => handleInputChange(el.id, e.target.value)}
@@ -296,7 +320,7 @@ const ShopPage: React.FC = () => {
 
                             {el.type === 'TextArea' && (
                                 <textarea
-                                    className="input-field min-h-[100px]"
+                                    className="w-full bg-white border border-gray-300 rounded-lg p-3 text-gray-900 outline-none focus:border-primary transition-colors min-h-[100px]"
                                     placeholder={el.placeholder}
                                     value={answers[el.id] || ''}
                                     onChange={(e) => handleInputChange(el.id, e.target.value)}
@@ -308,19 +332,19 @@ const ShopPage: React.FC = () => {
                                 <div className="relative">
                                     <input
                                         type="date"
-                                        className="input-field pl-12" // Increased padding
+                                        className="w-full bg-white border border-gray-300 rounded-lg p-3 text-gray-900 outline-none focus:border-primary transition-colors appearance-none"
                                         value={answers[el.id] || ''}
                                         onChange={(e) => handleInputChange(el.id, e.target.value)}
                                         required={el.required}
                                     />
-                                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" size={18} />
+                                    <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
                                 </div>
                             )}
 
                             {el.type === 'Select' && (
                                 <div className="relative">
                                     <select
-                                        className="input-field appearance-none"
+                                        className="w-full bg-white border border-gray-300 rounded-lg p-3 text-gray-900 outline-none focus:border-primary transition-colors appearance-none"
                                         value={answers[el.id] || ''}
                                         onChange={(e) => handleInputChange(el.id, e.target.value)}
                                         required={el.required}
@@ -330,7 +354,7 @@ const ShopPage: React.FC = () => {
                                             <option key={i} value={opt.trim()}>{opt.trim()}</option>
                                         ))}
                                     </select>
-                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none" size={16} />
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
                                 </div>
                             )}
 
@@ -340,7 +364,7 @@ const ShopPage: React.FC = () => {
                                         const optionTrimmed = opt.trim();
                                         const isSelected = answers[el.id] === optionTrimmed;
                                         return (
-                                            <label key={i} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isSelected ? 'bg-primary/10 border-primary text-white' : 'border-white/10 hover:bg-white/5 text-text-muted'}`}>
+                                            <label key={i} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isSelected ? 'bg-primary/5 border-primary text-gray-900' : 'border-gray-200 hover:bg-gray-50 text-gray-500'}`}>
                                                 <input
                                                     type="radio"
                                                     name={`radio-${el.id}`}
@@ -350,7 +374,7 @@ const ShopPage: React.FC = () => {
                                                     className="hidden"
                                                     required={el.required}
                                                 />
-                                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isSelected ? 'border-primary' : 'border-white/30'}`}>
+                                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isSelected ? 'border-primary' : 'border-gray-300'}`}>
                                                     {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
                                                 </div>
                                                 <span className="text-sm font-medium">{optionTrimmed}</span>
@@ -367,7 +391,7 @@ const ShopPage: React.FC = () => {
                                         const currentAnswers = (answers[el.id] as string[]) || [];
                                         const isChecked = currentAnswers.includes(optionTrimmed);
                                         return (
-                                            <label key={i} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isChecked ? 'bg-primary/10 border-primary text-white' : 'border-white/10 hover:bg-white/5 text-text-muted'}`}>
+                                            <label key={i} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isChecked ? 'bg-primary/5 border-primary text-gray-900' : 'border-gray-200 hover:bg-gray-50 text-gray-500'}`}>
                                                 <input
                                                     type="checkbox"
                                                     value={optionTrimmed}
@@ -375,8 +399,8 @@ const ShopPage: React.FC = () => {
                                                     onChange={(e) => handleCheckboxChange(el.id, optionTrimmed, e.target.checked)}
                                                     className="hidden"
                                                 />
-                                                <div className={`w-5 h-5 rounded border flex items-center justify-center ${isChecked ? 'bg-primary border-primary' : 'border-white/30'}`}>
-                                                    {isChecked && <Check size={14} className="text-black" />}
+                                                <div className={`w-5 h-5 rounded border flex items-center justify-center ${isChecked ? 'bg-primary border-primary' : 'border-gray-300'}`}>
+                                                    {isChecked && <Check size={14} className="text-white" />}
                                                 </div>
                                                 <span className="text-sm font-medium">{optionTrimmed}</span>
                                             </label>
@@ -386,7 +410,7 @@ const ShopPage: React.FC = () => {
                             )}
 
                             {el.type === 'Notice' && (
-                                <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-sm whitespace-pre-wrap text-text-muted leading-relaxed">
+                                <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 text-sm whitespace-pre-wrap text-gray-600 leading-relaxed">
                                     {el.label}
                                 </div>
                             )}
@@ -394,14 +418,14 @@ const ShopPage: React.FC = () => {
                             {el.type === 'FileUpload' && (
                                 <div className="space-y-3">
                                     {answers[el.id] ? (
-                                        <div className="relative rounded-xl overflow-hidden border border-white/10 group">
-                                            <img src={answers[el.id]} alt="Preview" className="w-full h-48 object-cover bg-black/20" />
+                                        <div className="relative rounded-xl overflow-hidden border border-gray-200 group">
+                                            <img src={answers[el.id]} alt="Preview" className="w-full h-48 object-cover bg-gray-50" />
                                             <button
                                                 type="button"
                                                 onClick={() => handleInputChange(el.id, '')}
                                                 className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full hover:bg-black/70 transition-colors"
                                             >
-                                                <Check size={16} className="rotate-45" /> {/* Using generic close/check logic or just overwrite. Actually simple re-upload is fine. */}
+                                                <Check size={16} className="rotate-45" />
                                             </button>
                                             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                                                 <p className="text-white text-xs font-bold">변경하려면 클릭하세요</p>
@@ -425,11 +449,11 @@ const ShopPage: React.FC = () => {
                                             />
                                         </div>
                                     ) : (
-                                        <div className="relative flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed border-white/10 hover:border-primary/50 hover:bg-white/5 transition-all cursor-pointer text-text-muted hover:text-primary">
+                                        <div className="relative flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed border-gray-200 hover:border-primary/50 hover:bg-gray-50 transition-all cursor-pointer text-gray-500 hover:text-primary">
                                             <Upload size={24} />
                                             <div className="text-center">
                                                 <p className="text-sm font-bold">사진 첨부하기</p>
-                                                <p className="text-[10px] opacity-70">클릭하여 이미지를 선택하세요</p>
+                                                <p className="text-xs opacity-70">클릭하여 이미지를 선택하세요</p>
                                             </div>
                                             <input
                                                 type="file"
@@ -454,24 +478,24 @@ const ShopPage: React.FC = () => {
                             )}
 
                             {el.type === 'Image' && el.options && (
-                                <div className="rounded-xl overflow-hidden shadow-lg">
+                                <div className="rounded-xl overflow-hidden shadow-sm border border-gray-200">
                                     <img src={el.options} alt="Shop Asset" className="w-full object-cover" />
                                 </div>
                             )}
                         </div>
                     ))}
 
-                    <div className="glass p-6 space-y-6 border-t-2 border-t-emerald-500">
-                        <h3 className="font-bold flex items-center gap-2">
+                    <div className="bg-white p-6 space-y-6 border-t-2 border-t-emerald-500 rounded-xl border border-gray-200 shadow-sm">
+                        <h3 className="font-bold flex items-center gap-2 text-gray-900">
                             <span className="w-2 h-6 bg-emerald-500 rounded-full" />
                             주문자 정보
                         </h3>
                         <div className="space-y-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-bold">주문자 성함 <span className="text-red-400">*</span></label>
+                                <label className="text-sm font-bold text-gray-800">주문자 성함 <span className="text-red-500">*</span></label>
                                 <input
                                     type="text"
-                                    className="input-field"
+                                    className="w-full bg-white border border-gray-300 rounded-lg p-3 text-gray-900 outline-none focus:border-primary transition-colors"
                                     placeholder="성함을 입력해주세요"
                                     value={customerName}
                                     onChange={(e) => setCustomerName(e.target.value)}
@@ -479,10 +503,10 @@ const ShopPage: React.FC = () => {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-bold">연락처 <span className="text-red-400">*</span></label>
+                                <label className="text-sm font-bold text-gray-800">연락처 <span className="text-red-500">*</span></label>
                                 <input
                                     type="tel"
-                                    className="input-field"
+                                    className="w-full bg-white border border-gray-300 rounded-lg p-3 text-gray-900 outline-none focus:border-primary transition-colors"
                                     placeholder="예: 010-1234-5678"
                                     value={customerPhone}
                                     onChange={handlePhoneChange}
@@ -493,10 +517,10 @@ const ShopPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="glass p-6 sticky bottom-6 border border-emerald-500/30 bg-gray-900/90 backdrop-blur shadow-2xl">
+                    <div className="p-6 sticky bottom-6 border border-emerald-500/30 bg-white/90 backdrop-blur shadow-2xl rounded-xl">
                         <div className="flex justify-between items-center mb-4">
-                            <span className="text-text-muted font-bold">총 주문 금액</span>
-                            <span className="text-2xl font-black text-emerald-400">{totalPrice.toLocaleString()}원</span>
+                            <span className="text-gray-500 font-bold">총 주문 금액</span>
+                            <span className="text-2xl font-black text-emerald-500">{totalPrice.toLocaleString()}원</span>
                         </div>
                         <button
                             type="submit"
@@ -508,7 +532,7 @@ const ShopPage: React.FC = () => {
                     </div>
                 </form>
             </div>
-        </div>
+        </div >
     );
 };
 

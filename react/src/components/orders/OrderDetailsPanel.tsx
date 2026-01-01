@@ -18,7 +18,7 @@ interface OrderDetailsPanelProps {
     saveChanges: () => Promise<void>;
     handleStatusChange: (order: Order, newStatus: string) => Promise<void>;
     deleteOrder: (id: string) => Promise<any>;
-    displayFields: { label: string; value: string }[];
+    displayFields: { label: string; value: string; type?: string }[];
     onClose: () => void;
 }
 
@@ -139,7 +139,22 @@ const OrderDetailsPanel: React.FC<OrderDetailsPanelProps> = ({
                                 {displayFields.map((f, i) => (
                                     <div key={i} className="glass p-3 space-y-1">
                                         <div className="text-[10px] font-bold text-text-muted uppercase">{f.label}</div>
-                                        <div className="text-sm font-bold">{f.value}</div>
+                                        {f.type === 'FileUpload' ? (
+                                            <div
+                                                className="relative w-full h-32 rounded-lg overflow-hidden cursor-pointer group border border-white/10"
+                                                onClick={() => {
+                                                    const w = window.open('');
+                                                    w?.document.write(`<img src="${f.value}" style="max-width:100%; height:auto;" />`);
+                                                }}
+                                            >
+                                                <img src={f.value} alt={f.label} className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                    <span className="text-xs text-white font-bold">크게 보기</span>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="text-sm font-bold truncate" title={f.value}>{f.value}</div>
+                                        )}
                                     </div>
                                 ))}
                                 {order.request_note && (

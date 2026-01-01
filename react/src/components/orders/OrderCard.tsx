@@ -7,7 +7,7 @@ interface OrderCardProps {
     order: Order;
     expanded: boolean;
     onClick: () => void;
-    displayFields: { label: string; value: string }[];
+    displayFields: { label: string; value: string; type?: string }[];
 }
 
 const getStatusIcon = (status: string) => {
@@ -57,7 +57,9 @@ const OrderCard: React.FC<OrderCardProps> = ({ order, expanded, onClick, display
                 </div>
                 <div className="flex flex-wrap gap-1">
                     {displayFields.slice(0, 3).map((c, i) => (
-                        <span key={i} className="text-[10px] bg-white/50 dark:bg-white/5 text-text-muted px-2 py-0.5 rounded border border-gray-200 dark:border-white/5">{c.value}</span>
+                        <span key={i} className="text-[10px] bg-white/50 dark:bg-white/5 text-text-muted px-2 py-0.5 rounded border border-gray-200 dark:border-white/5">
+                            {c.type === 'FileUpload' ? '📷 사진 첨부됨' : c.value}
+                        </span>
                     ))}
                 </div>
             </div>

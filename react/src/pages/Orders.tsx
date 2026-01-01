@@ -65,7 +65,7 @@ const OrdersPage: React.FC = () => {
         try {
             const config = JSON.parse(profile.order_form_config);
             return config.reduce((acc: any, el: any) => {
-                acc[el.id] = el.label;
+                acc[el.id] = { label: el.label, type: el.type };
                 return acc;
             }, {});
         } catch {
@@ -87,10 +87,14 @@ const OrdersPage: React.FC = () => {
         if (Array.isArray(parsed)) return parsed;
 
         if (parsed && typeof parsed === 'object' && parsed.answers) {
-            return Object.entries(parsed.answers).map(([key, value]) => ({
-                label: formConfigMap[key] || '추가 정보',
-                value: String(value)
-            }));
+            return Object.entries(parsed.answers).map(([key, value]) => {
+                const config = formConfigMap[key];
+                return {
+                    label: config?.label || '추가 정보',
+                    value: String(value),
+                    type: config?.type || 'Text'
+                };
+            });
         }
 
         return [];

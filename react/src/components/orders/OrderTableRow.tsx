@@ -7,7 +7,7 @@ interface OrderTableRowProps {
     order: Order;
     expanded: boolean;
     onClick: () => void;
-    displayFields: { label: string; value: string }[];
+    displayFields: { label: string; value: string; type?: string }[];
 }
 
 const getStatusIcon = (status: string) => {
@@ -47,7 +47,9 @@ const OrderTableRow: React.FC<OrderTableRowProps> = ({ order, expanded, onClick,
                 </div>
                 <div className="flex gap-1 mt-1">
                     {displayFields.slice(0, 2).map((c, i) => (
-                        <span key={i} className="text-[10px] bg-gray-100/50 dark:bg-white/5 text-text-muted px-2 py-0.5 rounded border border-gray-200 dark:border-white/5">{c.value}</span>
+                        <span key={i} className="text-[10px] bg-gray-100/50 dark:bg-white/5 text-text-muted px-2 py-0.5 rounded border border-gray-200 dark:border-white/5">
+                            {c.type === 'FileUpload' ? '📷 사진 첨부됨' : c.value}
+                        </span>
                     ))}
                 </div>
             </div>
