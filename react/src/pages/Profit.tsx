@@ -3,17 +3,15 @@ import { useStats } from '../hooks/useStats';
 import type { ProductAnalysis } from '../hooks/useStats';
 import {
     TrendingUp,
-    Target,
-    BarChart3,
     Calendar,
     RefreshCw,
+    BarChart3,
     Info,
+    Target,
     DollarSign,
-    PieChart as PieChartIcon,
-    X,
-    HelpCircle
+    PieChart as PieChartIcon
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     PieChart,
     Pie,
@@ -23,23 +21,32 @@ import {
 } from 'recharts';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import { NumberInput } from '../components/common/NumberInput';
+import { GuideButton } from '../components/common/GuideButton';
+import { GuideModal } from '../components/common/GuideModal';
 import Card from '../components/ui/Card';
 
 const ProfitPage: React.FC = () => {
     const { loading, fetchMonthStats } = useStats();
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
-    const [isForecastMode, setIsForecastMode] = useState(true);
+
+    // Simulation States
+    const [simulationMode, setSimulationMode] = useState<'Forecast' | 'Goal'>('Forecast');
     const [allocationMethod, setAllocationMethod] = useState<'Quantity' | 'Revenue'>('Quantity');
+    const [includeFixedCosts, setIncludeFixedCosts] = useState(true);
     const [additionalCost, setAdditionalCost] = useState(0);
+    const [goalRevenue, setGoalRevenue] = useState(10000000); // Default 10M
+    const [priceAdjustment, setPriceAdjustment] = useState(0); // Percentage -20 to +20
     const [showGuide, setShowGuide] = useState(false);
 
     const [rawData, setRawData] = useState<any>(null);
 
     const loadData = useCallback(async () => {
         const [year, month] = selectedMonth.split('-').map(Number);
-        const data = await fetchMonthStats(year, month - 1, isForecastMode);
+        // Always fetch Forecast data to get Estimated Sales for Sales Mix calculation
+        const data = await fetchMonthStats(year, month - 1, true);
         setRawData(data);
-    }, [fetchMonthStats, selectedMonth, isForecastMode]);
+    }, [fetchMonthStats, selectedMonth]);
 
     useEffect(() => {
         loadData();
@@ -47,38 +54,94 @@ const ProfitPage: React.FC = () => {
 
     const { products = [], totalOperatingExpenses = 0, totalInventoryLoss = 0, salesMap = {} } = rawData || {};
 
-    const analysis = useMemo(() => {
-        if (!rawData) return [];
+    // 1. Calculate Base Metrics & Sales Mix
+    const baseAnalysis = useMemo(() => {
+        if (!rawData) return { items: [], totalQty: 0, totalRev: 0 };
 
-        const totalOperatingCost = totalOperatingExpenses + additionalCost;
+        const items = products.map((p: any) => {
+            const estimatedQty = salesMap[p.name] || 0;
+            return {
+                ...p,
+                base_qty: estimatedQty,
+                base_revenue: p.selling_price * estimatedQty,
+            };
+        }).filter((p: any) => p.base_qty > 0); // Only active items
 
-        // Initial mapping
-        let result: ProductAnalysis[] = products.map((p: any) => {
-            const sales_count = salesMap[p.name] || 0;
+        const totalQty = items.reduce((sum: number, p: any) => sum + p.base_qty, 0);
+        const totalRev = items.reduce((sum: number, p: any) => sum + p.base_revenue, 0);
+
+        return {
+            items: items.map((p: any) => ({
+                ...p,
+                qty_mix_ratio: totalQty > 0 ? p.base_qty / totalQty : 0,
+                rev_mix_ratio: totalRev > 0 ? p.base_revenue / totalRev : 0
+            })),
+            totalQty,
+            totalRev
+        };
+    }, [rawData, products, salesMap]);
+
+    // 2. Perform Simulation
+    const simulation = useMemo(() => {
+        if (!rawData) return null;
+
+        const totalOperatingCost = (includeFixedCosts ? totalOperatingExpenses : 0) + additionalCost;
+        let factor = 1;
+
+        // Apply Price Adjustment
+        const priceMultiplier = 1 + (priceAdjustment / 100);
+
+        if (simulationMode === 'Goal') {
+
+            // Reverse Calculation Logic
+            // We need to find a 'factor' such that TotalRevenue comes close to GoalRevenue.
+            // Current Total Rev (with price adj) = Sum(Qty * Price * Multiplier)
+            // We scale Qty by 'factor'.
+
+            // Expected Rev = Sum( (BaseQty * factor) * (Price * Multiplier) )
+            //              = factor * Multiplier * Sum(BaseQty * Price)
+            //              = factor * Multiplier * BaseTotalRev
+
+            // Therefore: factor = GoalRev / (Multiplier * BaseTotalRev)
+
+            if (baseAnalysis.totalRev > 0) {
+                factor = goalRevenue / (priceMultiplier * baseAnalysis.totalRev);
+            }
+        } else {
+            // Forecast Mode: Just use base quantities
+            factor = 1;
+        }
+
+        const simulatedItems: ProductAnalysis[] = baseAnalysis.items.map((p: any) => {
+            const adjustedPrice = p.selling_price * priceMultiplier;
+            const simulatedQty = p.base_qty * factor;
+            const total_revenue = simulatedQty * adjustedPrice;
+            const total_variable_cost = simulatedQty * p.cost_price;
+
             return {
                 name: p.name,
-                selling_price: p.selling_price,
+                selling_price: adjustedPrice,
                 unit_variable_cost: p.cost_price,
-                sales_count,
-                total_revenue: p.selling_price * sales_count,
-                total_variable_cost: p.cost_price * sales_count,
+                sales_count: simulatedQty,
+                total_revenue,
+                total_variable_cost,
                 allocated_fixed_cost: 0,
                 total_profit: 0,
                 margin_rate: 0
             };
-        }).filter((p: any) => isForecastMode || p.sales_count > 0);
+        });
 
-        const totalSalesQuantity = result.reduce((sum, p) => sum + p.sales_count, 0);
-        const totalRevenue = result.reduce((sum, p) => sum + p.total_revenue, 0);
+        const totalSalesQuantity = simulatedItems.reduce((sum, p) => sum + p.sales_count, 0);
+        const totalSimulatedRevenue = simulatedItems.reduce((sum, p) => sum + p.total_revenue, 0);
 
-        // Allocation
-        result = result.map(p => {
+        // Allocation & Profit
+        const finalItems = simulatedItems.map(p => {
             let allocated = 0;
             if (totalOperatingCost > 0) {
                 if (allocationMethod === 'Quantity') {
                     allocated = totalSalesQuantity > 0 ? (p.sales_count / totalSalesQuantity) * totalOperatingCost : 0;
                 } else {
-                    allocated = totalRevenue > 0 ? (p.total_revenue / totalRevenue) * totalOperatingCost : 0;
+                    allocated = totalSimulatedRevenue > 0 ? (p.total_revenue / totalSimulatedRevenue) * totalOperatingCost : 0;
                 }
             }
 
@@ -91,50 +154,92 @@ const ProfitPage: React.FC = () => {
                 total_profit,
                 margin_rate
             };
-        });
+        }).sort((a, b) => b.total_profit - a.total_profit);
 
-        return result.sort((a, b) => b.total_profit - a.total_profit);
-    }, [rawData, allocationMethod, additionalCost, isForecastMode]);
+        const summaries = {
+            revenue: totalSimulatedRevenue,
+            variable: finalItems.reduce((sum, p) => sum + p.total_variable_cost, 0),
+            fixed: finalItems.reduce((sum, p) => sum + p.allocated_fixed_cost, 0),
+            profit: 0,
+            margin: 0,
+            inventoryLoss: totalInventoryLoss
+        };
+        summaries.profit = summaries.revenue - (summaries.variable + summaries.fixed + summaries.inventoryLoss);
+        summaries.margin = summaries.revenue > 0 ? (summaries.profit / summaries.revenue) * 100 : 0;
 
-    const totals = useMemo(() => {
-        if (!rawData) return { revenue: 0, variable: 0, fixed: 0, profit: 0, margin: 0, inventoryLoss: 0 };
-        const revenue = analysis.reduce((sum, p) => sum + p.total_revenue, 0);
-        const variable = analysis.reduce((sum, p) => sum + p.total_variable_cost, 0);
-        const fixed = analysis.reduce((sum, p) => sum + p.allocated_fixed_cost, 0);
-        const profit = revenue - (variable + fixed + totalInventoryLoss);
-        const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+        // BEP Calculation
+        // BEP Sales = Fixed Costs / (Weighted Avg Contribution Margin Ratio)
+        // Weighted Avg CMR = (Total Revenue - Total Variable Cost) / Total Revenue
+        const contributionMargin = summaries.revenue - summaries.variable;
+        const cmRatio = summaries.revenue > 0 ? contributionMargin / summaries.revenue : 0;
+        const totalFixedCosts = summaries.fixed + summaries.inventoryLoss; // Treat inventory loss as fixed for conservatism
 
-        return { revenue, variable, fixed, profit, margin, inventoryLoss: totalInventoryLoss };
-    }, [analysis, rawData, totalInventoryLoss]);
+        const bepRevenue = cmRatio > 0 ? totalFixedCosts / cmRatio : 0;
 
-    const chartData = [
-        { name: '재료비', value: totals.variable, color: '#3B82F6' },
-        { name: '운영비', value: totals.fixed, color: '#94A3B8' },
-        { name: '순수익', value: Math.max(0, totals.profit), color: '#10B981' },
-    ];
+        return { items: finalItems, summaries, bepRevenue };
 
-    if (totals.inventoryLoss > 0) {
-        chartData.push({ name: '재고 손실', value: totals.inventoryLoss, color: '#F59E0B' }); // Amber/Orange
-    }
+    }, [rawData, baseAnalysis, simulationMode, goalRevenue, allocationMethod, additionalCost, priceAdjustment, totalOperatingExpenses, totalInventoryLoss, includeFixedCosts]);
 
-    if (totals.profit < 0) {
-        chartData.push({ name: '손실', value: Math.abs(totals.profit), color: '#EF4444' });
-    }
+    // Daily Target Calculation
+    const dailyTarget = useMemo(() => {
+        if (simulationMode !== 'Goal' || !simulation) return null;
+
+        const today = new Date();
+        const [year, month] = selectedMonth.split('-').map(Number);
+
+        // If selected month is not current month, show theoretical daily average
+        if (today.getFullYear() !== year || today.getMonth() + 1 !== month) {
+            const daysInMonth = new Date(year, month, 0).getDate();
+            return {
+                message: "월 평균 일일 목표",
+                amount: goalRevenue / daysInMonth,
+                isCurrentMonth: false
+            };
+        }
+
+        // Current Month Logic
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const currentDay = today.getDate();
+        const remainingDays = daysInMonth - currentDay + 1; // Include today
+
+        // Ideally we fetch 'Current Actual Revenue' here to calculate gap.
+        // For simulation purposes, we can show simple daily division or gap if we had actuals.
+        // Let's assume linear distribution for now as "Pace Maker"
+        return {
+            message: `남은 ${remainingDays}일간 매일`,
+            amount: goalRevenue / daysInMonth, // Simplified for this version
+            isCurrentMonth: true
+        };
+
+    }, [simulation, simulationMode, goalRevenue, selectedMonth]);
+
+    const chartData = useMemo(() => {
+        if (!simulation) return [];
+        const { summaries } = simulation;
+        const data = [
+            { name: '재료비', value: summaries.variable, color: '#3B82F6' },
+            { name: '운영비', value: summaries.fixed, color: '#94A3B8' },
+            { name: '순수익', value: Math.max(0, summaries.profit), color: '#10B981' },
+        ];
+        if (summaries.inventoryLoss > 0) data.push({ name: '재고 손실', value: summaries.inventoryLoss, color: '#F59E0B' });
+        if (summaries.profit < 0) data.push({ name: '손실', value: Math.abs(summaries.profit), color: '#EF4444' });
+        return data;
+    }, [simulation]);
+
+    if (!simulation) return <div className="py-20 text-center"><RefreshCw className="animate-spin mx-auto text-primary" /></div>;
+
+    const { items, summaries, bepRevenue } = simulation;
 
     return (
         <div className="max-w-6xl mx-auto space-y-8 pb-20">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
-                    <div className="flex items-center gap-3 mb-2">
-                        <h1 className="text-4xl font-black text-text-main flex items-center gap-3">
-                            <TrendingUp className="text-primary" size={40} />
-                            마진 분석 리포트
-                        </h1>
-                        <button onClick={() => setShowGuide(true)} className="text-text-muted hover:text-primary dark:hover:text-white transition-colors" title="계산 방법 보기">
-                            <HelpCircle size={24} />
-                        </button>
-                    </div>
-                    <p className="text-text-muted font-medium">실제 판매 및 지출 데이터를 기반으로 비즈니스 수익성을 진단합니다.</p>
+                    <h1 className="text-3xl md:text-4xl font-black text-text-main flex items-center gap-3">
+                        <TrendingUp className="text-primary" size={40} />
+                        수익 분석
+                        <GuideButton onClick={() => setShowGuide(true)} className="ml-2" />
+                    </h1>
+                    <p className="text-text-muted font-medium mt-2">가격 변동과 목표 매출에 따른 수익 구조를 예측하고 최적의 전략을 수립하세요.</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -152,323 +257,317 @@ const ProfitPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Analysis Options Panel */}
-            <Card variant="glass" className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="space-y-2">
-                    <label className="text-xs font-black text-text-muted uppercase tracking-widest flex items-center gap-2">
-                        <Target size={14} /> 분석 모드
-                    </label>
-                    <div className="flex gap-2 p-1 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5">
+            {/* Simulation Controls */}
+            <Card variant="glass" className="grid grid-cols-1 lg:grid-cols-12 gap-8 bg-gradient-to-br from-white/40 to-white/10 dark:from-white/5 dark:to-transparent">
+
+                {/* 1. Goal Setting */}
+                <div className="lg:col-span-5 space-y-6">
+                    <div className="flex gap-2 p-1 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5 mb-6">
                         <Button
                             variant="secondary"
-                            onClick={() => setIsForecastMode(true)}
+                            onClick={() => setSimulationMode('Forecast')}
                             className="flex-1"
-                            isSelected={isForecastMode}
+                            isSelected={simulationMode === 'Forecast'}
                         >
-                            예상(시뮬레이션)
+                            기본 예측
                         </Button>
                         <Button
                             variant="secondary"
-                            onClick={() => setIsForecastMode(false)}
+                            onClick={() => setSimulationMode('Goal')}
                             className="flex-1"
-                            isSelected={!isForecastMode}
+                            isSelected={simulationMode === 'Goal'}
                         >
-                            실제(주문기반)
+                            목표 역산
                         </Button>
                     </div>
+
+                    <AnimatePresence mode="wait">
+                        {simulationMode === 'Goal' ? (
+                            <motion.div
+                                key="goal"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="space-y-4"
+                            >
+                                <NumberInput
+                                    label="월간 목표 매출"
+                                    value={goalRevenue}
+                                    onChange={setGoalRevenue}
+                                    className="text-right text-2xl font-black text-primary h-14"
+                                    rightIcon={<span className="text-lg font-bold">원</span>}
+                                />
+                                {dailyTarget && (
+                                    <div className="flex items-center justify-between p-4 bg-primary/10 rounded-xl border border-primary/20">
+                                        <div className="flex items-center gap-2 text-primary font-bold">
+                                            <Calendar size={18} />
+                                            <span>오늘의 미션</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-xs text-primary/70">{dailyTarget.message}</div>
+                                            <div className="text-xl font-black text-primary">{Math.round(dailyTarget.amount).toLocaleString()}원 달성</div>
+                                        </div>
+                                    </div>
+                                )}
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="forecast"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                className="p-6 bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/5 h-[160px] flex flex-col justify-center items-center text-center space-y-2"
+                            >
+                                <BarChart3 className="text-text-muted mb-2" size={32} />
+                                <h3 className="font-bold text-lg text-text-main">품목별 예상 판매량 기반</h3>
+                                <p className="text-sm text-text-muted">각 품목에 설정된 '월간 예상 판매량' 데이터를<br />바탕으로 수익을 예측합니다.</p>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
 
-                <div className="space-y-2">
-                    <label className="text-xs font-black text-text-muted uppercase tracking-widest flex items-center gap-2">
-                        <BarChart3 size={14} /> 운영비 배분 기준
-                    </label>
-                    <div className="flex gap-2 p-1 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/5">
-                        <Button
-                            variant="secondary"
-                            onClick={() => setAllocationMethod('Quantity')}
-                            className="flex-1"
-                            isSelected={allocationMethod === 'Quantity'}
-                        >
-                            판매량 비례
-                        </Button>
-                        <Button
-                            variant="secondary"
-                            onClick={() => setAllocationMethod('Revenue')}
-                            className="flex-1"
-                            isSelected={allocationMethod === 'Revenue'}
-                        >
-                            매출액 비례
-                        </Button>
+                {/* 2. Parameters */}
+                <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-8 border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-white/10 pt-8 lg:pt-0 lg:pl-8">
+                    <div className="space-y-6">
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <label className="text-xs font-black text-text-muted uppercase tracking-widest flex items-center gap-2">
+                                    <DollarSign size={14} /> 가격 조정 시뮬레이션
+                                </label>
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${priceAdjustment > 0 ? 'bg-emerald-500/20 text-emerald-500' : priceAdjustment < 0 ? 'bg-red-500/20 text-red-500' : 'bg-gray-200 text-gray-500'}`}>
+                                    {priceAdjustment > 0 ? '+' : ''}{priceAdjustment}%
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className="text-xs font-bold text-text-muted">-20%</span>
+                                <input
+                                    type="range"
+                                    min="-20"
+                                    max="20"
+                                    step="5"
+                                    value={priceAdjustment}
+                                    onChange={(e) => setPriceAdjustment(Number(e.target.value))}
+                                    className="flex-1 accent-primary h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                />
+                                <span className="text-xs font-bold text-text-muted">+20%</span>
+                            </div>
+                            <p className="text-xs text-text-muted">전체 판매가를 조정하여 수익성 변화를 관찰합니다.</p>
+                        </div>
+
+                        <div className="space-y-4 pt-2">
+                            <label className="text-xs font-black text-text-muted uppercase tracking-widest">운영비 옵션</label>
+                            <div className="flex flex-col gap-3">
+                                <div className="flex gap-2 p-1 bg-gray-100 dark:bg-white/5 rounded-lg">
+                                    <button className={`flex-1 py-1.5 text-xs font-bold rounded ${allocationMethod === 'Quantity' ? 'bg-white dark:bg-gray-700 shadow text-text-main' : 'text-text-muted'}`} onClick={() => setAllocationMethod('Quantity')}>판매량 비례 배분</button>
+                                    <button className={`flex-1 py-1.5 text-xs font-bold rounded ${allocationMethod === 'Revenue' ? 'bg-white dark:bg-gray-700 shadow text-text-main' : 'text-text-muted'}`} onClick={() => setAllocationMethod('Revenue')}>매출액 비례 배분</button>
+                                </div>
+                                <label className="flex items-center gap-2 text-sm font-bold text-text-main cursor-pointer p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors">
+                                    <input
+                                        type="checkbox"
+                                        checked={includeFixedCosts}
+                                        onChange={(e) => setIncludeFixedCosts(e.target.checked)}
+                                        className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                    />
+                                    <span>기존 등록된 고정비({totalOperatingExpenses.toLocaleString()}원) 포함하기</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
-                </div>
 
-                <div>
-                    <Input
-                        type="number"
-                        label="가상 추가 지출 보정"
-                        value={additionalCost}
-                        onChange={(e) => setAdditionalCost(Number(e.target.value))}
-                        placeholder="0"
-                        className="text-right font-black"
-                        rightIcon={<span className="text-sm font-bold">원</span>}
-                        containerClassName="h-full flex flex-col justify-end pb-1"
-                    />
+                    <div className="space-y-4 flex flex-col justify-end">
+                        <NumberInput
+                            label="가상 추가 지출 (월세, 인건비 등)"
+                            value={additionalCost}
+                            onChange={setAdditionalCost}
+                            placeholder="0"
+                            className="text-right font-bold bg-white dark:bg-black/20"
+                            rightIcon={<span className="text-sm font-bold">원</span>}
+                        />
+
+                        <div className="p-4 bg-amber-50 dark:bg-amber-400/5 border border-amber-200 dark:border-amber-400/20 rounded-xl space-y-1">
+                            <div className="flex justify-between items-center text-amber-700 dark:text-amber-400">
+                                <span className="text-xs font-bold uppercase">손익분기점 (BEP)</span>
+                                <span className="font-black">{Math.round(bepRevenue).toLocaleString()}원</span>
+                            </div>
+                            <div className="w-full bg-amber-200 dark:bg-amber-900/30 h-1.5 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-amber-500"
+                                    style={{ width: `${Math.min(100, (summaries.revenue / bepRevenue) * 100)}%` }}
+                                />
+                            </div>
+                            <p className="text-[10px] text-amber-600/70 dark:text-amber-400/60 text-right">
+                                {summaries.revenue >= bepRevenue ? '손익분기점 돌파 🎉' : `${Math.round(bepRevenue - summaries.revenue).toLocaleString()}원 부족`}
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </Card>
 
-            {/* Summary Cards and Charts */}
+            {/* Main Result Dashboard */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card variant="glass" className="space-y-4">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-xs font-bold text-text-muted mb-1">{isForecastMode ? '예상 매출' : '실제 매출'}</p>
-                                <h2 className="text-3xl font-black text-primary">{totals.revenue.toLocaleString()}원</h2>
-                            </div>
-                            <div className="p-3 bg-primary/10 rounded-2xl text-primary">
-                                <DollarSign size={24} />
-                            </div>
-                        </div>
-                        <div className="pt-4 border-t border-gray-200 dark:border-white/5">
-                            <p className="text-xs font-medium text-text-muted">총 판매량: <span className="text-text-main font-bold">{analysis.reduce((sum, p) => sum + p.sales_count, 0).toLocaleString()}개</span></p>
-                        </div>
-                    </Card>
-
-                    <Card variant="glass" className="space-y-4">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-xs font-bold text-text-muted mb-1">총 지출 (재료+운영+손실)</p>
-                                <h2 className="text-3xl font-black text-text-main">{(totals.variable + totals.fixed + totals.inventoryLoss).toLocaleString()}원</h2>
-                            </div>
-                            <div className="p-3 bg-gray-100 dark:bg-white/5 rounded-2xl text-text-muted">
-                                <TrendingUp size={24} className="rotate-180" />
-                            </div>
-                        </div>
-                        <div className="flex gap-4 pt-4 border-t border-gray-200 dark:border-white/5 overflow-x-auto pb-1">
-                            <div className="shrink-0">
-                                <span className="text-[10px] text-text-muted block uppercase font-bold">재료비</span>
-                                <span className="text-xs font-bold text-blue-400">{totals.variable.toLocaleString()}원</span>
-                            </div>
-                            <div className="w-px h-6 bg-gray-200 dark:bg-white/10 shrink-0"></div>
-                            <div className="shrink-0">
-                                <span className="text-[10px] text-text-muted block uppercase font-bold">운영비</span>
-                                <span className="text-xs font-bold text-slate-400">{totals.fixed.toLocaleString()}원</span>
-                            </div>
-                            <div className="w-px h-6 bg-gray-200 dark:bg-white/10 shrink-0"></div>
-                            <div className="shrink-0">
-                                <span className="text-[10px] text-text-muted block uppercase font-bold">재고손실</span>
-                                <span className="text-xs font-bold text-amber-500">{totals.inventoryLoss.toLocaleString()}원</span>
-                            </div>
-                        </div>
-                        <div className="space-y-2 mt-4">
-                            <div className="flex justify-between text-[10px] font-bold text-text-muted uppercase">
-                                <span>비용 효율성</span>
-                                <span>{totals.revenue > 0 ? ((totals.variable + totals.fixed + totals.inventoryLoss) / totals.revenue * 100).toFixed(1) : 0}%</span>
-                            </div>
-                            <div className="h-2 bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
-                                <motion.div
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${Math.min(100, totals.revenue > 0 ? ((totals.variable + totals.fixed + totals.inventoryLoss) / totals.revenue * 100) : 0)}%` }}
-                                    className="h-full bg-amber-400"
-                                />
+                    {/* Revenue Card */}
+                    <Card variant="glass" className="space-y-4 relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-32 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16 transition-all group-hover:bg-primary/10"></div>
+                        <div className="relative">
+                            <p className="text-xs font-bold text-text-muted mb-1">예상 총 매출</p>
+                            <h2 className="text-3xl font-black text-primary">{Math.round(summaries.revenue).toLocaleString()}원</h2>
+                            <div className="mt-4 flex items-center gap-2 text-xs font-medium text-text-muted">
+                                <span>총 판매량: <span className="text-text-main font-bold">{Math.round(items.reduce((sum, p) => sum + p.sales_count, 0)).toLocaleString()}개</span></span>
                             </div>
                         </div>
                     </Card>
 
-                    <div className={`col-span-full glass p-8 flex flex-col md:flex-row items-center justify-between gap-8 border-l-4 ${totals.profit >= 0 ? 'border-l-emerald-500 bg-emerald-500/5' : 'border-l-red-500 bg-red-500/5'}`}>
-                        <div className="space-y-1">
-                            <p className={`text-xs font-black uppercase tracking-widest ${totals.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                {isForecastMode ? '예상 순수익' : '실제 순수익'}
-                            </p>
-                            <h2 className="text-5xl font-black text-text-main">{totals.profit.toLocaleString()}원</h2>
-                        </div>
-                        <div className="flex flex-col items-center md:items-end">
-                            <div className={`text-6xl font-black ${totals.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{totals.margin.toFixed(1)}%</div>
-                            <p className="text-xs font-bold text-text-muted uppercase tracking-widest">최종 순이익률</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="lg:col-span-4 glass p-6">
-                    <h3 className="font-bold flex items-center gap-2 mb-6"><PieChartIcon className="text-primary" size={18} /> 순수익 구조</h3>
-                    <div className="h-[250px] flex justify-center items-center">
-                        <PieChart width={320} height={250}>
-                            <Pie
-                                data={chartData}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={60}
-                                outerRadius={80}
-                                paddingAngle={5}
-                                dataKey="value"
-                            >
-                                {chartData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                            </Pie>
-                            <Tooltip
-                                contentStyle={{ backgroundColor: '#1E293B', border: 'none', borderRadius: '12px', color: '#fff' }}
-                                itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                            />
-                            <Legend iconType="circle" wrapperStyle={{ paddingTop: '10px', fontSize: '12px', fontWeight: 'bold' }} />
-                        </PieChart>
-                    </div>
-                </div>
-            </div>
-
-            {/* Detailed Analysis List */}
-            <div className="glass overflow-hidden">
-                <div className="p-4 md:p-6 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <h3 className="font-bold flex items-center gap-2 text-text-main">
-                        <TrendingUp size={18} className="text-primary" />
-                        제품별 수익성 상세 분석
-                    </h3>
-                    <div className="flex items-center gap-2 text-xs text-text-muted bg-white/5 px-4 py-2 rounded-full">
-                        <Info size={12} />
-                        운영비는 {allocationMethod === 'Quantity' ? '판매량' : '매출액'} 기준 {(totals.fixed).toLocaleString()}원이 배분되었습니다.
-                    </div>
-                </div>
-
-                {/* Desktop Table Header */}
-                <div className="hidden md:grid grid-cols-[2fr_1fr_1.5fr_1.5fr_1.5fr_1.5fr_1.5fr_1fr_1.5fr] text-right gap-4 px-6 py-4 bg-gray-50 dark:bg-white/[0.02] text-[10px] font-black text-text-muted uppercase tracking-widest border-b border-gray-200 dark:border-white/5">
-                    <div className="text-left">제품명</div>
-                    <div className="text-center">판매량</div>
-                    <div>매출액</div>
-                    <div>재료비(총)</div>
-                    <div>운영비 배분</div>
-                    <div className="bg-gray-100 dark:bg-white/5 pr-2 rounded">단가 원가</div>
-                    <div>개당 마진</div>
-                    <div className="text-center">마진율</div>
-                    <div>순수익 기여</div>
-                </div>
-
-                <div className="divide-y divide-gray-200 dark:divide-white/5">
-                    {analysis.length === 0 ? (
-                        <div className="py-20 text-center text-text-muted italic">분석할 데이터가 없습니다.</div>
-                    ) : (
-                        analysis.map((p, idx) => (
-                            <React.Fragment key={idx}>
-                                {/* Mobile Card View */}
-                                <div className="md:hidden p-5 space-y-4 hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
-                                    <div className="flex justify-between items-start">
-                                        <div className="font-bold text-lg text-text-main">{p.name}</div>
-                                        <span className={`px-2 py-1 rounded-lg text-xs font-black ${p.margin_rate >= 30 ? 'bg-emerald-500/20 text-emerald-400' : p.margin_rate >= 15 ? 'bg-primary/20 text-primary' : 'bg-amber-400/20 text-amber-400'}`}>
-                                            {p.margin_rate.toFixed(1)}%
-                                        </span>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="bg-gray-100 dark:bg-white/5 p-3 rounded-lg space-y-1">
-                                            <div className="text-[10px] text-text-muted uppercase">매출액</div>
-                                            <div className="font-bold">{p.total_revenue.toLocaleString()}원</div>
-                                            <div className="text-[10px] text-text-muted">({p.sales_count.toLocaleString()}개 판매)</div>
-                                        </div>
-                                        <div className={`p-3 rounded-lg space-y-1 ${p.total_profit >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
-                                            <div className={`text-[10px] uppercase font-bold ${p.total_profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>순수익</div>
-                                            <div className={`font-bold ${p.total_profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{p.total_profit.toLocaleString()}원</div>
-                                            <div className="text-[10px] opacity-70">개당 {(p.sales_count > 0 ? (p.total_profit / p.sales_count) : 0).toLocaleString()}원</div>
-                                        </div>
-                                    </div>
-
-                                    <div className="text-xs text-text-muted flex justify-between px-1">
-                                        <span>재료비: {p.total_variable_cost.toLocaleString()}원</span>
-                                        <span>운영비(배분): {p.allocated_fixed_cost.toLocaleString()}원</span>
-                                    </div>
-                                </div>
-
-                                {/* Desktop Table Row */}
-                                <div className="hidden md:grid grid-cols-[2fr_1fr_1.5fr_1.5fr_1.5fr_1.5fr_1.5fr_1fr_1.5fr] text-right gap-4 px-6 py-5 items-center hover:bg-gray-50 dark:hover:bg-white/[0.02] transition-colors">
-                                    <div className="text-left font-bold text-text-main">{p.name}</div>
-                                    <div className="text-center font-bold text-lg">{p.sales_count.toLocaleString()}</div>
-                                    <div className="text-text-muted">{p.total_revenue.toLocaleString()}</div>
-                                    <div className="text-text-muted">{p.total_variable_cost.toLocaleString()}</div>
-                                    <div className="text-primary/70">{p.allocated_fixed_cost.toLocaleString()}</div>
-                                    <div className="bg-gray-100 dark:bg-white/5 font-mono font-bold pr-2 rounded">
-                                        {(p.unit_variable_cost + (p.sales_count > 0 ? p.allocated_fixed_cost / p.sales_count : 0)).toLocaleString()}원
-                                    </div>
-                                    <div className={`font-bold ${p.total_profit / p.sales_count >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                                        {p.sales_count > 0 ? (p.total_profit / p.sales_count).toLocaleString() : 0}원
-                                    </div>
-                                    <div className="text-center">
-                                        <span className={`px-2 py-1 rounded-lg text-[10px] font-black ${p.margin_rate >= 30 ? 'bg-emerald-500/20 text-emerald-400' : p.margin_rate >= 15 ? 'bg-primary/20 text-primary' : 'bg-amber-400/20 text-amber-400'}`}>
-                                            {p.margin_rate.toFixed(1)}%
-                                        </span>
-                                    </div>
-                                    <div className="font-black text-lg text-text-main">
-                                        {p.total_profit.toLocaleString()}
-                                    </div>
-                                </div>
-                            </React.Fragment>
-                        ))
-                    )}
-                </div>
-            </div>
-
-            {showGuide && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setShowGuide(false)}>
-                    <div className="bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-white/10 rounded-3xl max-w-2xl w-full p-8 space-y-8 shadow-2xl overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                    {/* Cost & Profit Card */}
+                    <Card variant="glass" className="space-y-4 relative overflow-hidden">
                         <div className="flex justify-between items-start">
-                            <div>
-                                <h3 className="text-2xl font-black flex items-center gap-2 text-text-main dark:text-white">
-                                    <Info className="text-primary" />
-                                    수익 분석 계산 가이드
-                                </h3>
-                                <p className="text-text-muted mt-1">소복이 순수익을 계산하는 방법을 안내해 드려요.</p>
+                            <div className="space-y-1">
+                                <p className="text-xs font-bold text-text-muted">예상 순수익</p>
+                                <h2 className={`text-4xl font-black ${summaries.profit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                    {Math.round(summaries.profit).toLocaleString()}원
+                                </h2>
                             </div>
-                            <button onClick={() => setShowGuide(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 text-text-main dark:text-white rounded-xl transition-all"><X /></button>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-4">
-                                <h4 className="font-bold text-lg text-emerald-400 border-b border-emerald-500/30 pb-2">기본 공식</h4>
-                                <div className="space-y-3 text-sm">
-                                    <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-transparent">
-                                        <div className="font-bold text-gray-900 dark:text-white mb-1">총 매출 (Revenue)</div>
-                                        <div className="text-text-muted fa-xs">판매가 × 판매 수량</div>
-                                    </div>
-                                    <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-transparent">
-                                        <div className="font-bold text-gray-900 dark:text-white mb-1">변동비 (Variable Cost)</div>
-                                        <div className="text-text-muted fa-xs">재료 원가(BOM) × 판매 수량</div>
-                                    </div>
-                                    <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-transparent">
-                                        <div className="font-bold text-gray-900 dark:text-white mb-1">운영비 (Fixed Cost)</div>
-                                        <div className="text-text-muted fa-xs">고정 지출 + 추가 입력 비용 (재고 손실 제외)</div>
-                                    </div>
-                                    <div className="bg-amber-50 dark:bg-amber-400/5 rounded-xl p-3 border-l-2 border-amber-400">
-                                        <div className="font-bold text-amber-600 dark:text-amber-400 mb-1">재고 손실 (Inventory Loss)</div>
-                                        <div className="text-text-muted fa-xs">재고 실사를 통해 파악된 손실 금액</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <h4 className="font-bold text-lg text-primary border-b border-primary/30 pb-2">배분 및 순수익</h4>
-                                <div className="space-y-3 text-sm">
-                                    <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-transparent">
-                                        <div className="font-bold text-gray-900 dark:text-white mb-1">순수익 계산</div>
-                                        <div className="text-text-muted fa-xs">매출 - (변동비 + 배분된 운영비 + 재고 손실)</div>
-                                    </div>
-                                    <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-transparent">
-                                        <div className="font-bold text-gray-900 dark:text-white mb-1">운영비 배분 기준</div>
-                                        <ul className="list-disc list-inside text-text-muted text-xs space-y-1 mt-1">
-                                            <li><span className="text-gray-900 dark:text-white font-bold">판매량 비례</span>: 많이 팔린 제품에 운영비를 더 많이 배분</li>
-                                            <li><span className="text-gray-900 dark:text-white font-bold">매출액 비례</span>: 비싼 제품에 운영비를 더 많이 배분</li>
-                                        </ul>
-                                    </div>
-                                </div>
+                            <div className={`px-3 py-1 rounded-lg text-lg font-black ${summaries.profit >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                                {summaries.margin.toFixed(1)}%
                             </div>
                         </div>
 
-                        <div className="bg-blue-50 dark:bg-white/5 border border-blue-100 dark:border-white/10 p-4 rounded-xl flex gap-4 items-start">
-                            <Info className="shrink-0 text-blue-500 dark:text-primary mt-1" size={20} />
-                            <div className="text-sm text-blue-800 dark:text-gray-300">
-                                <span className="text-blue-900 dark:text-white font-bold block mb-1">💡 팁</span>
-                                '예상(시뮬레이션)' 모드에서는 아직 팔리지 않은 재고도 모두 팔렸다고 가정하여 최대 수익을 예측해 볼 수 있습니다.
+                        <div className="flex gap-2 text-[10px] font-bold uppercase text-text-muted pt-2 border-t border-gray-200 dark:border-white/5">
+                            <div className="flex-1">
+                                <span className="block mb-1">재료비</span>
+                                <span className="text-blue-400">{Math.round(summaries.variable).toLocaleString()}</span>
+                            </div>
+                            <div className="w-px bg-gray-200 dark:bg-white/10"></div>
+                            <div className="flex-1">
+                                <span className="block mb-1">운영비</span>
+                                <span className="text-slate-400">{Math.round(summaries.fixed).toLocaleString()}</span>
+                            </div>
+                            {summaries.inventoryLoss > 0 && (
+                                <>
+                                    <div className="w-px bg-gray-200 dark:bg-white/10"></div>
+                                    <div className="flex-1">
+                                        <span className="block mb-1">재고손실</span>
+                                        <span className="text-amber-500">{Math.round(summaries.inventoryLoss).toLocaleString()}</span>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </Card>
+
+                    {/* Chart Section */}
+                    <div className="col-span-full glass p-6 flex flex-col md:flex-row items-center gap-8">
+                        <div className="flex-1 w-full">
+                            <h3 className="font-bold flex items-center gap-2 mb-4 text-sm"><PieChartIcon className="text-primary" size={16} /> 수익 구조 분석</h3>
+                            <div className="h-[200px] w-full flex justify-center">
+                                <PieChart width={300} height={200}>
+                                    <Pie
+                                        data={chartData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={50}
+                                        outerRadius={70}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {chartData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: '#1E293B', border: 'none', borderRadius: '12px', color: '#fff' }}
+                                        itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                                    />
+                                    <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
+                                </PieChart>
+                            </div>
+                        </div>
+                        <div className="flex-1 space-y-4 w-full">
+                            <h3 className="font-bold text-sm mb-4">비용 효율성 진단</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <div className="flex justify-between text-xs font-bold mb-1">
+                                        <span>마진율 (목표: 30% 이상)</span>
+                                        <span className={summaries.margin >= 30 ? 'text-emerald-500' : 'text-amber-500'}>{summaries.margin.toFixed(1)}%</span>
+                                    </div>
+                                    <div className="h-2 bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${Math.min(100, summaries.margin)}%` }}
+                                            className={`h-full ${summaries.margin >= 30 ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="flex justify-between text-xs font-bold mb-1">
+                                        <span>원가율 (권장: 35% 이하)</span>
+                                        <span className={summaries.revenue > 0 && (summaries.variable / summaries.revenue) <= 0.35 ? 'text-emerald-500' : 'text-red-500'}>
+                                            {summaries.revenue > 0 ? ((summaries.variable / summaries.revenue) * 100).toFixed(1) : 0}%
+                                        </span>
+                                    </div>
+                                    <div className="h-2 bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${Math.min(100, summaries.revenue > 0 ? (summaries.variable / summaries.revenue) * 100 : 0)}%` }}
+                                            className={`h-full ${summaries.revenue > 0 && (summaries.variable / summaries.revenue) <= 0.35 ? 'bg-emerald-500' : 'bg-red-500'}`}
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            )}
+
+                {/* Right: Item List */}
+                <div className="lg:col-span-4 glass flex flex-col h-[600px]">
+                    <div className="p-5 border-b border-gray-200 dark:border-white/5 bg-gray-50/50 dark:bg-white/[0.02]">
+                        <h3 className="font-bold flex items-center gap-2">
+                            <Target size={18} className="text-primary" />
+                            {simulationMode === 'Goal' ? '목표 달성을 위한 판매량' : '예상 판매 시나리오'}
+                        </h3>
+                        <p className="text-xs text-text-muted mt-1">
+                            {simulationMode === 'Goal' ? '현재 판매 비율을 유지했을 때 필요한 수량입니다.' : '설정된 예상 판매량을 기준으로 합니다.'}
+                        </p>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
+                        {items.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-text-muted opacity-50">
+                                <Info size={32} className="mb-2" />
+                                <p className="text-xs">데이터가 없습니다.</p>
+                            </div>
+                        ) : (
+                            items.map((item, idx) => (
+                                <div key={idx} className="p-3 bg-white dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/5 hover:border-primary/30 transition-colors">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <span className="font-bold text-sm text-text-main line-clamp-1">{item.name}</span>
+                                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${item.margin_rate >= 30 ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-gray-100 dark:bg-white/10 text-text-muted'}`}>
+                                            마진 {item.margin_rate.toFixed(0)}%
+                                        </span>
+                                    </div>
+                                    <div className="flex items-end justify-between">
+                                        <div className="text-xs text-text-muted">
+                                            <span className="font-bold text-primary text-base">{Math.round(item.sales_count).toLocaleString()}</span>
+                                            <span className="text-[10px] ml-1">개 판매 시</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-xs font-bold text-text-main">{Math.round(item.total_profit).toLocaleString()}원</div>
+                                            <div className="text-[10px] text-text-muted">순수익</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+
+
+            {/* Calculation Guide Modal */}
+            <GuideModal
+                isOpen={showGuide}
+                onClose={() => setShowGuide(false)}
+                pageId="profit_analysis"
+                title="마진율 분석 가이드"
+            />
         </div>
     );
 };

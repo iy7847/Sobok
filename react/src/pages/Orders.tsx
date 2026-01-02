@@ -18,6 +18,8 @@ import OrderFilters from '../components/orders/OrderFilters';
 import OrderCard from '../components/orders/OrderCard';
 import OrderTableRow from '../components/orders/OrderTableRow';
 import OrderDetailsPanel from '../components/orders/OrderDetailsPanel';
+import { GuideButton } from '../components/common/GuideButton';
+import { GuideModal } from '../components/common/GuideModal';
 
 const OrdersPage: React.FC = () => {
     const { user, profile } = useAuth();
@@ -29,6 +31,7 @@ const OrdersPage: React.FC = () => {
     const [startDate, setStartDate] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
     const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+    const [showGuide, setShowGuide] = useState(false);
 
     // Editing state
     const [isEditMode, setIsEditMode] = useState(false);
@@ -163,6 +166,7 @@ const OrdersPage: React.FC = () => {
                     <h1 className="text-2xl xs:text-3xl md:text-5xl font-black tracking-tighter flex items-center gap-3 md:gap-4">
                         <ClipboardList className="text-primary shrink-0" size={32} />
                         <span className="truncate">주문 관리</span>
+                        <GuideButton onClick={() => setShowGuide(true)} className="ml-2" />
                     </h1>
                     <p className="text-text-muted font-medium">실시간 접수된 주문을 확인하고 프로세스를 관리하세요.</p>
                 </div>
@@ -269,6 +273,13 @@ const OrdersPage: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            <GuideModal
+                isOpen={showGuide}
+                onClose={() => setShowGuide(false)}
+                pageId="orders"
+                title="주문 관리 가이드"
+            />
         </div>
     );
 };

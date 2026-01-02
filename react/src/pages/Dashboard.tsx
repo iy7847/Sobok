@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDashboard } from '../hooks/useDashboard';
 import {
     Package,
@@ -12,13 +12,16 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { GuideButton } from '../components/common/GuideButton';
+import { GuideModal } from '../components/common/GuideModal';
 
 const Dashboard: React.FC = () => {
     const { stats, loading } = useDashboard();
+    const [showGuide, setShowGuide] = useState(false);
 
     const cards = [
         {
-            label: '판매 완제품',
+            label: '판매 제품',
             value: stats.products,
             icon: <Package size={32} />,
             color: 'bg-emerald-500',
@@ -34,7 +37,7 @@ const Dashboard: React.FC = () => {
             desc: '제품의 구성 요소가 되는 중간재'
         },
         {
-            label: '원자재',
+            label: '재료',
             value: stats.materials,
             icon: <Box size={32} />,
             color: 'bg-slate-500',
@@ -71,6 +74,7 @@ const Dashboard: React.FC = () => {
                     >
                         소복, 복잡함은 덜고 <br />
                         <span className="text-primary italic">이익은 채우고</span>
+                        <GuideButton onClick={() => setShowGuide(true)} className="ml-3 align-middle" />
                     </motion.h1>
                     <motion.p
                         initial={{ opacity: 0, y: 20 }}
@@ -78,7 +82,7 @@ const Dashboard: React.FC = () => {
                         transition={{ delay: 0.2 }}
                         className="text-text-muted text-lg font-medium leading-relaxed"
                     >
-                        원가 분석부터 주문 관리까지, <br />
+                        수익 분석부터 주문 관리까지, <br />
                         당신의 비즈니스를 더 스마트하게 관리하세요.
                     </motion.p>
                 </div>
@@ -173,7 +177,15 @@ const Dashboard: React.FC = () => {
                     </Link>
                 </motion.div>
             </div>
-        </div>
+
+
+            <GuideModal
+                isOpen={showGuide}
+                onClose={() => setShowGuide(false)}
+                pageId="dashboard"
+                title="대시보드 가이드"
+            />
+        </div >
     );
 };
 

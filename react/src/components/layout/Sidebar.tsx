@@ -26,12 +26,12 @@ const Sidebar: React.FC = () => {
 
     const navItems = [
         { to: '/', icon: <LayoutDashboard size={20} />, label: '대시보드' },
-        { to: '/items', icon: <Package size={20} />, label: '품목/원가 관리' },
+        { to: '/items', icon: <Package size={20} />, label: '제품 관리' },
         { to: '/orders', icon: <ShoppingCart size={20} />, label: '주문 관리' },
         { to: '/profit', icon: <BarChart3 size={20} />, label: '수익 분석' },
-        { to: '/inventory-check', icon: <ClipboardCheck size={20} />, label: '재고 실사' },
-        { to: '/expenses', icon: <CreditCard size={20} />, label: '지출/고정비' },
-        { to: '/config', icon: <Settings size={20} />, label: '주문서 설정' },
+        { to: '/inventory-check', icon: <ClipboardCheck size={20} />, label: '재고 관리' },
+        { to: '/expenses', icon: <CreditCard size={20} />, label: '지출 관리' },
+        { to: '/config', icon: <Settings size={20} />, label: '환경 설정' },
     ];
 
     return (

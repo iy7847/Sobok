@@ -16,6 +16,8 @@ import { NumberInput } from '../components/common/NumberInput';
 import Button from '../components/ui/Button';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import { GuideButton } from '../components/common/GuideButton';
+import { GuideModal } from '../components/common/GuideModal';
 
 interface BomItemView extends Partial<BOM> {
     child_item?: Item;
@@ -33,6 +35,7 @@ const BOMDetailPage: React.FC = () => {
     const [allUserItems, setAllUserItems] = useState<Item[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCommitting, setIsCommitting] = useState(false);
+    const [showGuide, setShowGuide] = useState(false);
 
     const [filterType, setFilterType] = useState<ItemType>('Material');
     const [searchQuery, setSearchQuery] = useState('');
@@ -192,8 +195,11 @@ const BOMDetailPage: React.FC = () => {
                 </button>
                 <div>
                     <div className="flex items-center gap-3 mb-1">
-                        <span className="px-2 py-0.5 rounded-md bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider">BOM Recipe</span>
-                        <h1 className="text-3xl font-black">{currentItem?.name}</h1>
+                        <span className="px-2 py-0.5 rounded-md bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider">재료 관리</span>
+                        <h1 className="text-3xl font-black">
+                            {currentItem?.name}
+                            <GuideButton onClick={() => setShowGuide(true)} className="ml-2 inline-block align-middle" />
+                        </h1>
                     </div>
                     <p className="text-text-muted text-sm house-description">구성 재료와 소요량을 관리하여 정확한 제조 원가를 산출합니다.</p>
                 </div>
@@ -217,7 +223,7 @@ const BOMDetailPage: React.FC = () => {
                                     onClick={() => setFilterType('Material')}
                                     className="w-full"
                                 >
-                                    원자재
+                                    재료
                                 </Button>
                                 <Button
                                     variant="secondary"
@@ -456,7 +462,14 @@ const BOMDetailPage: React.FC = () => {
                         <div className="flex items-center gap-1"><CheckCircle2 size={12} className="text-emerald-400" /> 실시간 원가 동기화</div>
                     </div>
                 </div>
-            </div>
+
+                <GuideModal
+                    isOpen={showGuide}
+                    onClose={() => setShowGuide(false)}
+                    pageId="bom_detail"
+                    title="재료 관리 가이드"
+                />
+            </div >
         </div>
     );
 };

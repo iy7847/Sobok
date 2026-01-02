@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useOrderConfig } from '../hooks/useOrderConfig';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
@@ -38,6 +38,8 @@ interface ConfigItemProps {
 import { compressImage } from '../utils/image';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { GuideButton } from '../components/common/GuideButton';
+import { GuideModal } from '../components/common/GuideModal';
 
 const ConfigItem = ({ item, index, totalCount, updateElement, removeElement, moveElement, user }: ConfigItemProps) => {
     const controls = useDragControls();
@@ -227,6 +229,7 @@ const ConfigPage: React.FC = () => {
         moveElement,
         setElements
     } = useOrderConfig();
+    const [showGuide, setShowGuide] = useState(false);
 
     useEffect(() => {
         loadConfig();
@@ -289,7 +292,8 @@ const ConfigPage: React.FC = () => {
                 <div>
                     <h1 className="text-4xl font-black mb-2 flex items-center gap-3 text-text-main">
                         <Palette className="text-primary" size={40} />
-                        주문서 디자인 설정
+                        환경 설정
+                        <GuideButton onClick={() => setShowGuide(true)} className="ml-2" />
                     </h1>
                     <p className="text-text-muted font-medium">고객들이 보게 될 온라인 주문서의 항목과 디자인을 관리하세요.</p>
                 </div>
@@ -441,7 +445,14 @@ const ConfigPage: React.FC = () => {
                     </div>
                 </div>
             </div>
-        </div>
+
+            <GuideModal
+                isOpen={showGuide}
+                onClose={() => setShowGuide(false)}
+                pageId="config"
+                title="환경 설정 가이드"
+            />
+        </div >
     );
 };
 

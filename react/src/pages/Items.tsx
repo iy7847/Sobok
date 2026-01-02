@@ -20,6 +20,8 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Card from '../components/ui/Card';
+import { GuideButton } from '../components/common/GuideButton';
+import { GuideModal } from '../components/common/GuideModal';
 
 const ItemsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -28,6 +30,7 @@ const ItemsPage: React.FC = () => {
     const [search, setSearch] = useState('');
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<Partial<Item> | null>(null);
+    const [showGuide, setShowGuide] = useState(false);
 
     useEffect(() => {
         fetchItems();
@@ -63,9 +66,9 @@ const ItemsPage: React.FC = () => {
 
     const getTypeLabel = (type: ItemType) => {
         switch (type) {
-            case 'Product': return '완제품';
+            case 'Product': return '제품';
             case 'Component': return '반제품';
-            case 'Material': return '원자재';
+            case 'Material': return '재료';
             default: return type;
         }
     };
@@ -85,9 +88,10 @@ const ItemsPage: React.FC = () => {
                 <div>
                     <h1 className="text-4xl font-black mb-2 flex items-center gap-3 text-text-main">
                         <Package className="text-primary" size={40} />
-                        품목 및 원가 관리
+                        제품 관리
+                        <GuideButton onClick={() => setShowGuide(true)} className="ml-2" />
                     </h1>
-                    <p className="text-text-muted">원자재부터 완제품까지, 체계적인 레시피 관리를 시작하세요.</p>
+                    <p className="text-text-muted">재료부터 제품까지, 체계적인 레시피 관리를 시작하세요.</p>
                 </div>
                 <Button
                     onClick={() => handleOpenForm()}
@@ -349,9 +353,9 @@ const ItemsPage: React.FC = () => {
                                         value={editingItem?.type || 'Product'}
                                         onChange={(e) => setEditingItem({ ...editingItem, type: e.target.value as ItemType })}
                                         options={[
-                                            { value: 'Product', label: '🎁 완제품' },
+                                            { value: 'Product', label: '🎁 제품' },
                                             { value: 'Component', label: '🍰 반제품' },
-                                            { value: 'Material', label: '📦 원자재' }
+                                            { value: 'Material', label: '📦 재료' }
                                         ]}
                                     />
                                     <Input
@@ -416,15 +420,29 @@ const ItemsPage: React.FC = () => {
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-text-muted uppercase tracking-wider">판매가 (원)</label>
-                                        <NumberInput
-                                            className="w-full bg-white dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-lg h-12 px-4 text-xl font-bold text-emerald-500 dark:text-emerald-400"
-                                            placeholder="0"
-                                            value={editingItem?.selling_price || 0}
-                                            onChange={(val) => setEditingItem({ ...editingItem, selling_price: val })}
-                                        />
-                                    </div>
+                                    <>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-text-muted uppercase tracking-wider">판매가 (원)</label>
+                                            <NumberInput
+                                                className="w-full bg-white dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-lg h-12 px-4 text-xl font-bold text-emerald-500 dark:text-emerald-400"
+                                                placeholder="0"
+                                                value={editingItem?.selling_price || 0}
+                                                onChange={(val) => setEditingItem({ ...editingItem, selling_price: val })}
+                                            />
+                                        </div>
+                                        {editingItem?.type === 'Product' && (
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-text-muted uppercase tracking-wider">월간 예상 판매량 (개)</label>
+                                                <NumberInput
+                                                    className="w-full bg-white dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-lg h-12 px-4 text-lg font-bold"
+                                                    placeholder="0"
+                                                    value={editingItem?.estimated_monthly_sales || 0}
+                                                    onChange={(val) => setEditingItem({ ...editingItem, estimated_monthly_sales: val })}
+                                                />
+                                                <p className="text-xs text-text-muted/70">수익 시뮬레이션에 사용됩니다.</p>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
 
                                 <div className="space-y-2">
@@ -459,6 +477,13 @@ const ItemsPage: React.FC = () => {
                     </div>
                 )}
             </AnimatePresence>
+
+            <GuideModal
+                isOpen={showGuide}
+                onClose={() => setShowGuide(false)}
+                pageId="items"
+                title="품목 관리 가이드"
+            />
         </div>
     );
 };

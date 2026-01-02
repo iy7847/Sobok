@@ -1,6 +1,7 @@
 export const getStatusLabel = (status: string) => {
     const s = status.toLowerCase();
     if (s === 'pending') return '신규';
+    if (s === 'processing') return '확인';
     return status;
 };
 

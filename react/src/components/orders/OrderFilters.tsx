@@ -62,19 +62,21 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
                     />
                 </div>
 
-                <Select
-                    label="상태 필터"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="h-11"
-                    options={[
-                        { value: "All", label: "전체 상태 보기" },
-                        { value: "신규", label: "🔴 신규 주문" },
-                        { value: "확인", label: "🟡 확인 중" },
-                        { value: "완료", label: "🟢 처리 완료" },
-                        { value: "취소", label: "⚪ 주문 취소" }
-                    ]}
-                />
+                <div className="space-y-2">
+                    <Select
+                        label="상태 필터"
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="h-11"
+                        options={[
+                            { value: "All", label: "전체 상태 보기" },
+                            { value: "pending", label: "🔴 신규 주문" },
+                            { value: "processing", label: "🟡 확인 중" },
+                            { value: "completed", label: "🟢 처리 완료" },
+                            { value: "cancelled", label: "⚪ 주문 취소" }
+                        ]}
+                    />
+                </div>
             </div>
 
             <div className="flex gap-1 p-1 bg-gray-100 dark:bg-white/5 rounded-2xl overflow-x-auto custom-scrollbar no-scrollbar">

@@ -14,6 +14,8 @@ import {
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
+import { GuideButton } from '../components/common/GuideButton';
+import { GuideModal } from '../components/common/GuideModal';
 
 const InventoryCheckPage: React.FC = () => {
     const { items, fetchItems, fetchBOMs } = useItems();
@@ -23,6 +25,7 @@ const InventoryCheckPage: React.FC = () => {
     const [periodType, setPeriodType] = useState<'Monthly' | 'Quarterly' | 'Half-yearly'>('Monthly');
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
     const [searchQuery, setSearchQuery] = useState('');
+    const [showGuide, setShowGuide] = useState(false);
 
     // User Inputs Map: { itemId: { in_qty: number, actual_stock: number } }
     const [inputs, setInputs] = useState<Record<number, { in_qty: number, actual_stock: number | '' }>>({});
@@ -184,7 +187,8 @@ const InventoryCheckPage: React.FC = () => {
                 <div>
                     <h1 className="text-4xl font-black mb-2 flex items-center gap-3 text-text-main">
                         <ClipboardCheck className="text-primary" size={40} />
-                        재고 실사 (Inventory Audit)
+                        재고 관리
+                        <GuideButton onClick={() => setShowGuide(true)} className="ml-2" />
                     </h1>
                     <p className="text-text-muted font-medium">전산 재고와 실제 재고를 비교하여 손실을 파악하고 비용으로 처리합니다.</p>
                 </div>
@@ -394,7 +398,14 @@ const InventoryCheckPage: React.FC = () => {
                     실사 확정 및 비용 처리
                 </Button>
             </div>
-        </div>
+
+            <GuideModal
+                isOpen={showGuide}
+                onClose={() => setShowGuide(false)}
+                pageId="inventory_check"
+                title="재고 실사 가이드"
+            />
+        </div >
     );
 };
 

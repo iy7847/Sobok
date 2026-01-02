@@ -20,6 +20,8 @@ import { NumberInput } from '../components/common/NumberInput';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Card from '../components/ui/Card';
+import { GuideButton } from '../components/common/GuideButton';
+import { GuideModal } from '../components/common/GuideModal';
 
 const ExpensesPage: React.FC = () => {
     const {
@@ -33,6 +35,7 @@ const ExpensesPage: React.FC = () => {
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
     const [showForm, setShowForm] = useState(false);
     const [editingItem, setEditingItem] = useState<Expense | FixedCost | any>(null);
+    const [showGuide, setShowGuide] = useState(false);
 
     const loadData = useCallback(() => {
         const [year, month] = selectedMonth.split('-').map(Number);
@@ -109,7 +112,8 @@ const ExpensesPage: React.FC = () => {
                 <div>
                     <h1 className="text-4xl font-black mb-2 flex items-center gap-3 text-text-main">
                         <Receipt className="text-primary" size={40} />
-                        지출 내역 관리
+                        지출 관리
+                        <GuideButton onClick={() => setShowGuide(true)} className="ml-2" />
                     </h1>
                     <p className="text-text-muted font-medium">비즈니스 운영을 위해 투입된 비용을 꼼꼼하게 기록하세요.</p>
                 </div>
@@ -453,6 +457,13 @@ const ExpensesPage: React.FC = () => {
                     </AnimatePresence>
                 </div>
             </div>
+
+            <GuideModal
+                isOpen={showGuide}
+                onClose={() => setShowGuide(false)}
+                pageId="expenses"
+                title="지출 관리 가이드"
+            />
         </div >
     );
 };

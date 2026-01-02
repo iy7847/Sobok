@@ -46,6 +46,38 @@ export const useStats = () => {
                 }
             });
 
+            // If Forecast mode, also fetch FixedCosts and add them (avoiding duplicates if they were already imported is tricky, 
+            // but usually FixedCosts are separate settings. If user imported them to Expenses, they are in Expenses.
+            // If we blindly add FixedCosts + Expenses, we might double count if user already imported.
+            // However, the user complaint implies they "registered" them (in Fixed Costs) but they are not showing up.
+            // This suggests they likely haven't imported them to "Expenses" for this month yet.
+            // For "Simulation", it makes sense to include "FixedCosts" table values if they are NOT in Expenses.
+            // Or simpler: For Forecast/Simulation, we might want to prioritize "Fixed Costs" settings + "Variable Expenses".
+            // Let's check if we should add them. A safe bet for "Simulation" is to check if these fixed costs are already present in Expenses.
+            // But simpler logic for now: "Forecast" implies looking at the *Structure*.
+            // Let's fetch FixedCosts and add them to totalOperatingExpenses.
+
+            if (isForecast) {
+
+
+                const { data: fixedCosts } = await supabase
+                    .from('FixedCosts')
+                    .select('*')
+                    .eq('user_id', user.id);
+
+                const fixedCostsList = fixedCosts || [];
+
+                fixedCostsList.forEach(fc => {
+                    // Check if this fixed cost is already in the 'expenses' list for this month
+                    // criteria: same name/category and similar amount (allowing for small diffs? no, exact for now)
+                    const alreadyIncluded = (expenses || []).some(e => e.category === fc.name && Math.abs(e.amount - fc.amount) < 100);
+
+                    if (!alreadyIncluded) {
+                        totalOperatingExpenses += fc.amount;
+                    }
+                });
+            }
+
             // 2. Fetch Products
             const { data: products } = await supabase
                 .from('Items')

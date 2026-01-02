@@ -1,6 +1,7 @@
 {
   "css.lint.unknownAtRules": "ignore",
   "deno.enablePaths": [
+    "./supabase",
     "supabase"
   ],
   "deno.unstable": true,
