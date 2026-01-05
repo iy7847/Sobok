@@ -44,9 +44,12 @@ const ItemsPage: React.FC = () => {
 
     const handleOpenForm = (item?: Item) => {
         if (item) {
-            setEditingItem(item);
+            setEditingItem({
+                ...item,
+                purchase_unit: (item.type === 'Material' && !item.purchase_unit) ? 'g' : item.purchase_unit
+            });
         } else {
-            setEditingItem({ type: filter === 'All' ? 'Product' : filter, purchase_qty: 1, usage_qty: 100 });
+            setEditingItem({ type: filter === 'All' ? 'Product' : filter, purchase_qty: 1, usage_qty: 100, purchase_unit: 'g' });
         }
         setIsFormOpen(true);
     };

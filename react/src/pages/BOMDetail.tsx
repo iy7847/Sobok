@@ -139,6 +139,24 @@ const BOMDetailPage: React.FC = () => {
             .reduce((sum, b) => sum + (b.child_item?.cost_price || 0) * (b.quantity || 0), 0);
     };
 
+    const calculateUnitTotals = () => {
+        const totals = new Map<string, number>();
+
+        bomList
+            .filter(b => !b.isDeleted && b.child_item?.purchase_unit)
+            .forEach(b => {
+                const unit = b.child_item!.purchase_unit!;
+                const current = totals.get(unit) || 0;
+                totals.set(unit, current + (b.quantity || 0));
+            });
+
+        if (totals.size === 0) return '';
+
+        return Array.from(totals.entries())
+            .map(([unit, total]) => `${total.toLocaleString()}${unit}`)
+            .join(', ');
+    };
+
     const handleCommit = async () => {
         if (!id || isCommitting) return;
         setIsCommitting(true);
@@ -346,21 +364,24 @@ const BOMDetailPage: React.FC = () => {
                                                     )}
                                                 </div>
                                                 <div className={`text-[10px] font-normal mt-0.5 ${(!bom.child_item?.cost_price || bom.child_item.cost_price === 0) ? 'text-amber-500/80' : 'text-text-muted'}`}>
-                                                    단가: {bom.child_item?.cost_price?.toLocaleString() || 0}원
+                                                    단가: {bom.child_item?.cost_price?.toLocaleString() || 0}원 / {bom.child_item?.purchase_unit}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <NumberInput
-                                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-right font-mono text-sm focus:border-primary outline-none transition-all"
-                                                    value={bom.quantity || 0}
-                                                    onChange={(val) => {
-                                                        setBomList(prev => prev.map(item =>
-                                                            item.child_item_id === bom.child_item_id
-                                                                ? { ...item, quantity: val }
-                                                                : item
-                                                        ));
-                                                    }}
-                                                />
+                                                <div className="flex items-center gap-2">
+                                                    <NumberInput
+                                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-right font-mono text-sm focus:border-primary outline-none transition-all"
+                                                        value={bom.quantity || 0}
+                                                        onChange={(val) => {
+                                                            setBomList(prev => prev.map(item =>
+                                                                item.child_item_id === bom.child_item_id
+                                                                    ? { ...item, quantity: val }
+                                                                    : item
+                                                            ));
+                                                        }}
+                                                    />
+                                                    <span className="text-xs text-text-muted">{bom.child_item?.purchase_unit}</span>
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4 text-right font-mono font-bold text-sm text-primary">
                                                 {((bom.child_item?.cost_price || 0) * (bom.quantity || 0)).toLocaleString()}원
@@ -379,10 +400,20 @@ const BOMDetailPage: React.FC = () => {
                                     )}
                                 </tbody>
                                 <tfoot className="bg-primary/5">
-                                    <tr className="font-bold text-white border-t border-white/5">
-                                        <td colSpan={3} className="px-6 py-6 text-right text-sm">총 제조 원가 합계</td>
-                                        <td className="px-6 py-6 text-right text-2xl text-primary font-black">
-                                            {calculateTotalCost().toLocaleString()}원
+                                    <tr className="font-bold text-gray-900 dark:text-white border-t border-black/5 dark:border-white/5">
+                                        <td colSpan={2} className="px-6 py-6 text-right text-sm">
+                                            <div className="flex flex-col items-end gap-1">
+                                                <span>총 소요량 합계</span>
+                                                <span className="text-xs font-normal text-gray-500 dark:text-gray-400 opacity-80">{calculateUnitTotals()}</span>
+                                            </div>
+                                        </td>
+                                        <td colSpan={2} className="px-6 py-6 text-right">
+                                            <div className="flex flex-col items-end gap-1">
+                                                <span className="text-sm">총 제조 원가 합계</span>
+                                                <span className="text-2xl text-primary font-black">
+                                                    {calculateTotalCost().toLocaleString()}원
+                                                </span>
+                                            </div>
                                         </td>
                                         <td></td>
                                     </tr>
@@ -446,12 +477,20 @@ const BOMDetailPage: React.FC = () => {
                                     </div>
                                 )}
                             </div>
-                            <div className="bg-primary/5 p-4 border-t border-white/5">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-sm font-bold">총 합계</span>
-                                    <span className="text-xl font-black text-primary">
-                                        {calculateTotalCost().toLocaleString()}원
-                                    </span>
+                            <div className="bg-primary/5 p-4 border-t border-black/5 dark:border-white/5">
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-start">
+                                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400">총 소요량</span>
+                                        <span className="text-xs text-gray-600 dark:text-gray-400 text-right max-w-[200px]">
+                                            {calculateUnitTotals()}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm font-bold text-gray-900 dark:text-white">총 합계</span>
+                                        <span className="text-xl font-black text-primary">
+                                            {calculateTotalCost().toLocaleString()}원
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
