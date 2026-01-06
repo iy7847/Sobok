@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useExpenses } from '../hooks/useExpenses';
+import { useMonthlySettlement } from '../hooks/useMonthlySettlement';
 import {
     Receipt,
     Calendar,
@@ -28,8 +29,10 @@ const ExpensesPage: React.FC = () => {
         expenses, fetchExpenses, saveExpense, deleteExpense,
         fixedCosts, fetchFixedCosts, saveFixedCost, deleteFixedCost,
         importFixedCostsToExpenses,
-        loading
+        loading: expensesLoading
     } = useExpenses();
+    const { settlement, loading: settlementLoading, fetchMonthlySettlement } = useMonthlySettlement();
+    const loading = expensesLoading || settlementLoading;
 
     const [activeTab, setActiveTab] = useState<'History' | 'Templates'>('History');
     const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -41,6 +44,7 @@ const ExpensesPage: React.FC = () => {
         const [year, month] = selectedMonth.split('-').map(Number);
         if (activeTab === 'History') {
             fetchExpenses(year, month - 1);
+            fetchMonthlySettlement(year, month - 1);
         } else {
             fetchFixedCosts();
         }
@@ -50,9 +54,6 @@ const ExpensesPage: React.FC = () => {
         loadData();
     }, [loadData]);
 
-    const totalMonthlyExpenses = useMemo(() =>
-        expenses.reduce((sum, e) => sum + e.amount, 0), [expenses]
-    );
 
     const totalFixedCosts = useMemo(() =>
         fixedCosts.reduce((sum, fc) => sum + fc.amount, 0), [fixedCosts]
@@ -84,7 +85,8 @@ const ExpensesPage: React.FC = () => {
             await saveFixedCost(editingItem);
         }
         setShowForm(false);
-        loadData();
+        // Delay reload slightly to ensure DB update propagates
+        setTimeout(loadData, 500);
     };
 
     const handleDelete = async (id: number) => {
@@ -140,22 +142,54 @@ const ExpensesPage: React.FC = () => {
                 {/* Summary Card */}
                 <div className="lg:col-span-4 space-y-6">
                     <Card variant="glass" className="space-y-4 border-l-4 border-l-primary bg-primary/5">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-xs font-black text-primary uppercase tracking-widest mb-1">
-                                    {activeTab === 'History' ? `${selectedMonth} 총 지출` : '월 예상 총 고정비'}
-                                </p>
-                                <h2 className="text-4xl font-black text-text-main">
-                                    {(activeTab === 'History' ? totalMonthlyExpenses : totalFixedCosts).toLocaleString()}원
-                                </h2>
+                        {activeTab === 'History' ? (
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-xs font-black text-text-muted uppercase tracking-widest mb-2">
+                                        {selectedMonth} 월간 손익 결산
+                                    </p>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-sm text-text-muted">총 매출 (주문 기준)</span>
+                                        <span className="font-bold text-lg text-primary">{settlement.revenue.toLocaleString()}원</span>
+                                    </div>
+                                    <div className="flex justify-between items-center mb-3">
+                                        <span className="text-sm text-text-muted">총 지출 (입력 기준)</span>
+                                        <span className="font-bold text-lg text-red-400">-{settlement.expense.toLocaleString()}원</span>
+                                    </div>
+                                    <div className="h-px bg-gray-200 dark:bg-white/10 my-2"></div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-black text-text-main">순수익</span>
+                                        <span className={`text-3xl font-black ${settlement.netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                            {settlement.netProfit.toLocaleString()}원
+                                        </span>
+                                    </div>
+                                    {settlement.revenue > 0 && (
+                                        <div className="text-right mt-1">
+                                            <span className={`text-xs font-bold px-2 py-0.5 rounded ${settlement.netProfit >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                                                이익률 {settlement.profitMargin.toFixed(1)}%
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                            <div className="p-3 bg-primary/20 rounded-2xl text-primary">
-                                <Wallet size={24} />
+                        ) : (
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-xs font-black text-primary uppercase tracking-widest mb-1">
+                                        월 예상 총 고정비
+                                    </p>
+                                    <h2 className="text-4xl font-black text-text-main">
+                                        {totalFixedCosts.toLocaleString()}원
+                                    </h2>
+                                </div>
+                                <div className="p-3 bg-primary/20 rounded-2xl text-primary">
+                                    <Wallet size={24} />
+                                </div>
                             </div>
-                        </div>
-                        <p className="text-sm text-text-muted">
+                        )}
+                        <p className="text-xs text-text-muted leading-relaxed">
                             {activeTab === 'History'
-                                ? "이 금액이 마진 분석 시 '총 운영비'로 반영됩니다."
+                                ? "주문 관리에서 완료된 '총 매출'과 이곳에 입력된 '총 지출'을 합산한 실제 수익입니다."
                                 : "이 금액을 기준으로 매달 지출을 간편하게 생성할 수 있습니다."}
                         </p>
                     </Card>

@@ -236,10 +236,10 @@ const ProfitPage: React.FC = () => {
                 <div>
                     <h1 className="text-3xl md:text-4xl font-black text-text-main flex items-center gap-3">
                         <TrendingUp className="text-primary" size={40} />
-                        수익 분석
+                        수익 시뮬레이션
                         <GuideButton onClick={() => setShowGuide(true)} className="ml-2" />
                     </h1>
-                    <p className="text-text-muted font-medium mt-2">가격 변동과 목표 매출에 따른 수익 구조를 예측하고 최적의 전략을 수립하세요.</p>
+                    <p className="text-text-muted font-medium mt-2">가격 변동과 목표 매출에 따른 수익 구조를 예측해볼 수 있습니다. (실제 결산과 무관)</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -254,6 +254,17 @@ const ProfitPage: React.FC = () => {
                     <Button variant="ghost" size="icon" onClick={loadData}>
                         <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
                     </Button>
+                </div>
+            </div>
+
+            <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl p-4 flex items-start gap-3">
+                <Info className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" size={20} />
+                <div className="text-sm text-amber-900 dark:text-amber-100">
+                    <p className="font-bold mb-1">💡 시뮬레이션 전용 페이지입니다.</p>
+                    <p className="opacity-90">
+                        이곳의 결과는 현재 등록된 '제품 표준 원가(BOM)'를 기준으로 계산된 <strong>예측치</strong>입니다.<br />
+                        실제 통장 잔고와 일치하는 정확한 수익 확인은 <strong>[지출 관리]</strong> 메뉴를 이용해주세요.
+                    </p>
                 </div>
             </div>
 

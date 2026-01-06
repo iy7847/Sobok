@@ -9,9 +9,9 @@
 | **Dashboard** | 대시보드 | 메인 화면 |
 | **Items** | 제품 관리 | 기존: 품목 및 원가 관리 |
 | **Orders** | 주문 관리 | |
-| **Expenses** | 지출 관리 | 기존: 지출 내역 관리 |
+| **Expenses** | 지출 관리 | 월간 손익 결산 (통합 정산) |
 | **InventoryCheck** | 재고 관리 | Inventory Audit 혼용 주의 |
-| **Profit** | 수익 분석 | 기존: 마진율 분석 |
+| **Profit** | 수익 시뮬레이션 | 기존: 수익 분석 (마진율 분석) |
 | **Config** | 환경 설정 | 기존: 주문서 디자인 설정 |
 | **BOMDetail** | 재료 관리 | BOM (Bill of Materials) |
 

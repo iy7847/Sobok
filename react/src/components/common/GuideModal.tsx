@@ -108,7 +108,12 @@ export const GuideModal: React.FC<GuideModalProps> = ({ isOpen, onClose, pageId,
                                             {guide.title}
                                         </h4>
                                         <div className={`${bgColors[index % bgColors.length]} p-4 rounded-xl text-sm whitespace-pre-wrap leading-relaxed`}>
-                                            {guide.content}
+                                            {guide.content.split('\\n').map((line, i) => (
+                                                <React.Fragment key={i}>
+                                                    {line}
+                                                    {i < guide.content.split('\\n').length - 1 && <br />}
+                                                </React.Fragment>
+                                            ))}
                                         </div>
                                     </div>
                                 ))

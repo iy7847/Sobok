@@ -24,6 +24,7 @@
 - **파일 위치**: `d:\06_Coding\AntiGravity\Sobok\supabase\schema\00_create_help_guides.sql`
 - **역활**: 테이블 생성, RLS 정책 설정, 초기 가이드 데이터(Seed Data) 입력.
 - **업데이트 방법**: 가이드 내용을 변경하려면 위 SQL 파일의 `INSERT` 구문을 수정한 후 Supabase SQL Editor에서 실행하십시오.
+- **추가 업데이트 (2026.01.06)**: `d:\06_Coding\AntiGravity\Sobok\supabase\schema\01_update_guides.sql` 파일을 통해 지출 관리 및 수익 시뮬레이션 가이드가 갱신되었습니다.
 
 ## 3. 프론트엔드 아키텍처 (Frontend Architecture)
 
