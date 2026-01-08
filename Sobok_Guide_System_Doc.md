@@ -25,6 +25,7 @@
 - **역활**: 테이블 생성, RLS 정책 설정, 초기 가이드 데이터(Seed Data) 입력.
 - **업데이트 방법**: 가이드 내용을 변경하려면 위 SQL 파일의 `INSERT` 구문을 수정한 후 Supabase SQL Editor에서 실행하십시오.
 - **추가 업데이트 (2026.01.06)**: `d:\06_Coding\AntiGravity\Sobok\supabase\schema\01_update_guides.sql` 파일을 통해 지출 관리 및 수익 시뮬레이션 가이드가 갱신되었습니다.
+- **추가 업데이트 (2026.01.09)**: `d:\06_Coding\AntiGravity\Sobok\supabase\schema\02_update_bom_guide.sql` 파일을 통해 일괄 BOM 계산기 가이드가 추가되었습니다.
 
 ## 3. 프론트엔드 아키텍처 (Frontend Architecture)
 
@@ -44,7 +45,7 @@
 
 #### `GuideModal`
 - **위치**: `react/src/components/common/GuideModal.tsx`
-- **기능**: 실제 가이드 내용을 보여주는 모달 창입니다. DB에서 가져온 `icon_name` 문자열을 실제 `Lucide` 아이콘 컴포넌트로 동적 매핑합니다.
+- **기능**: 실제 가이드 내용을 보여주는 모달 창입니다. DB에서 가져온 `icon_name` 문자열을 실제 `Lucide` 아이콘 컴포넌트로 동적 매핑하며, `\n` 문자를 실제 줄바꿈(`<br />`)으로 변환하여 렌더링합니다.
 - **사용법**:
   ```tsx
   <GuideModal

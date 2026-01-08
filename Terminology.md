@@ -9,11 +9,12 @@
 | **Dashboard** | 대시보드 | 메인 화면 |
 | **Items** | 제품 관리 | 기존: 품목 및 원가 관리 |
 | **Orders** | 주문 관리 | |
-| **Expenses** | 지출 관리 | 월간 손익 결산 (통합 정산) |
-| **InventoryCheck** | 재고 관리 | Inventory Audit 혼용 주의 |
-| **Profit** | 수익 시뮬레이션 | 기존: 수익 분석 (마진율 분석) |
+| **Expenses** | 지출 관리 | **월간 손익 결산 (핵심)**: 매출/지출/순수익 통합 확인 |
+| **InventoryCheck** | 재고 관리 | **수량 점검용**: 비용 차감 기능 제외됨 |
+| **Profit** | 수익 시뮬레이션 | **예측 전용**: 실제 결산 아님 (BOM 기준 예측) |
 | **Config** | 환경 설정 | 기존: 주문서 디자인 설정 |
 | **BOMDetail** | 재료 관리 | BOM (Bill of Materials) |
+| **Batch BOM Calculator** | 일괄 BOM 계산기 | BOM 상세 페이지 내 기능 |
 
 ## 2. 품목 유형 (Item Types)
 | 영문명 (Code) | 한글명 (UI/Guide) | 비고 |

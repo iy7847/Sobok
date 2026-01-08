@@ -10,7 +10,8 @@ import {
     Search,
     Loader2,
     CheckCircle2,
-    AlertCircle
+    AlertCircle,
+    Calculator
 } from 'lucide-react';
 import { NumberInput } from '../components/common/NumberInput';
 import Button from '../components/ui/Button';
@@ -18,6 +19,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { GuideButton } from '../components/common/GuideButton';
 import { GuideModal } from '../components/common/GuideModal';
+import { BatchRecipeModal } from '../components/bom/BatchRecipeModal';
 
 interface BomItemView extends Partial<BOM> {
     child_item?: Item;
@@ -36,6 +38,7 @@ const BOMDetailPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isCommitting, setIsCommitting] = useState(false);
     const [showGuide, setShowGuide] = useState(false);
+    const [showBatchModal, setShowBatchModal] = useState(false);
 
     const [filterType, setFilterType] = useState<ItemType>('Material');
     const [searchQuery, setSearchQuery] = useState('');
@@ -157,6 +160,36 @@ const BOMDetailPage: React.FC = () => {
             .join(', ');
     };
 
+    const handleBatchApply = (calculatedItems: { item: Item; unitQty: number }[]) => {
+        setBomList(prev => {
+            const newList = [...prev];
+
+            calculatedItems.forEach(calc => {
+                const index = newList.findIndex(b => b.child_item_id === calc.item.id);
+                if (index !== -1) {
+                    // Update existing
+                    // If it was deleted, restore it. If simple update, update quantity.
+                    newList[index] = {
+                        ...newList[index],
+                        isDeleted: false,
+                        quantity: calc.unitQty
+                    };
+                } else {
+                    // Add new
+                    newList.push({
+                        parent_item_id: Number(id),
+                        child_item_id: calc.item.id,
+                        quantity: calc.unitQty,
+                        child_item: calc.item,
+                        isNew: true
+                    });
+                }
+            });
+
+            return newList;
+        });
+    };
+
     const handleCommit = async () => {
         if (!id || isCommitting) return;
         setIsCommitting(true);
@@ -227,9 +260,18 @@ const BOMDetailPage: React.FC = () => {
                 {/* Left: Ingredient Selector */}
                 <div className="lg:col-span-1 space-y-6">
                     <div className="glass p-6 space-y-6">
-                        <h3 className="font-bold flex items-center gap-2">
-                            <Plus size={18} className="text-primary" />
-                            재료 추가
+                        <h3 className="font-bold flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Plus size={18} className="text-primary" />
+                                재료 추가
+                            </div>
+                            <button
+                                onClick={() => setShowBatchModal(true)}
+                                className="text-[10px] bg-primary/10 text-primary px-2 py-1 rounded-lg font-bold hover:bg-primary/20 transition-colors flex items-center gap-1"
+                            >
+                                <Calculator size={12} />
+                                일괄 계산
+                            </button>
                         </h3>
 
                         <div className="space-y-4">
@@ -507,6 +549,13 @@ const BOMDetailPage: React.FC = () => {
                     onClose={() => setShowGuide(false)}
                     pageId="bom_detail"
                     title="재료 관리 가이드"
+                />
+
+                <BatchRecipeModal
+                    isOpen={showBatchModal}
+                    onClose={() => setShowBatchModal(false)}
+                    onApply={handleBatchApply}
+                    availableItems={allUserItems}
                 />
             </div >
         </div>
